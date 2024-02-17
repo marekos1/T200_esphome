@@ -1,0 +1,156 @@
+esphome:
+  name: esphome-web-dfcb8c
+  includes:
+    - custom_components/msz_t200_device/msz_t200_device.h
+
+
+esp32:
+  board: esp32-s2-saola-1
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+
+wifi:
+  ssid: !secret old_house_ssid
+  password: !secret old_house_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esphome-Web-Dfcb8C"
+    password: !secret node_ap_passward
+
+captive_portal:
+
+
+
+
+status_led:
+  pin:
+    number: GPIO2
+    inverted: true
+
+spi:
+- id: spi0
+  clk_pin: GPIO11
+  mosi_pin: GPIO12
+  miso_pin: GPIO13
+
+msz_t200_device:
+  id: msz_t200_dev_1
+  spi_id: "spi0"
+  cs_pin: GPIO10
+  unit_module_1.1: "input8"
+  unit_module_1.2: "input8"
+  unit_module_1.3: "output8"
+  unit_module_1.4: "dallas4"
+
+sensor:
+  - platform: msz_t200_sens2
+    msz_t200_device: msz_t200_dev_1
+    unit_id: 1
+    module_id: 2
+    bus_id: 1
+    temperature:
+      name: "Living Room Temperature"
+    humidity:
+      name: "Living Room Humidity"
+    update_interval: 5s
+  - platform: msz_t200_dallas
+    msz_t200_device: msz_t200_dev_1
+    unit_id: 1
+    module_id: 2
+    bus_id: 2
+    temperature:
+      name: "Dallas Temperature test"
+    humidity:
+      name: "Dallas Humidity test"
+    update_interval: 3s
+
+binary_sensor:
+  - platform: gpio
+    name: "T200 test Pin #1"
+    pin:
+      msz_t200_device: msz_t200_dev_1
+      unit_id: 1
+      module_id: 1
+      number: 2
+      mode:
+        input: true
+        pullup: true
+      inverted: false
+  - platform: gpio
+    name: "T200 test Pin #2"
+    pin:
+      msz_t200_device: msz_t200_dev_1
+      unit_id: 1
+      module_id: 1
+      # Use pin number 1
+      number: 3
+      # One of INPUT or INPUT_PULLUP
+      mode:
+        input: true
+        pullup: true
+      inverted: false
+
+switch:
+  - platform: gpio
+    name: "Living Room Dehumidifier"
+    pin:
+      msz_t200_device: msz_t200_dev_1
+      unit_id: 1
+      module_id: 1
+      number: 4
+      mode:
+        input: true
+        pullup: true
+      inverted: false
+
+light:
+  - platform: fastled_clockless
+    chipset: WS2812
+    pin: GPIO18
+    num_leds: 1
+    rgb_order: GRB
+    name: "FastLED WS2811 Light"    
+    
+  - platform: binary
+    name: "Desk Lamp"
+    output: light_output
+
+output:
+  - id: light_output
+    platform: gpio
+    pin:
+      msz_t200_device: msz_t200_dev_1
+      unit_id: 1
+      module_id: 1
+      number: 5
+      mode:
+        input: true
+        pullup: true
+      inverted: false
+  - id: test_button
+    platform: gpio
+    pin:
+      msz_t200_device: msz_t200_dev_1
+      unit_id: 1
+      module_id: 1
+      number: 6
+      mode:
+        input: true
+        pullup: true
+      inverted: false
+
+button:
+  - platform: output
+    name: "Generic Output"
+    output: test_button
+    duration: 5000ms
