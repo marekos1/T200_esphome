@@ -97,7 +97,7 @@ bool MszT200GPIOPin::digital_read_prv(uint8_t unit_id, uint8_t module_id, uint8_
 				ESP_LOGCONFIG(TAG, "set_parent_was: %u parent_: %p" , set_parent_was ? 1 : 0, this->parent_);
 				
 				uint8_t reg_value = (uint8_t)tv.tv_usec;
-				this->parent_->read_reg(tv.tv_sec, &reg_value);
+			//	this->parent_->read_reg(tv.tv_sec, &reg_value);
 			} else {
 			//	ESP_LOGCONFIG(TAG, "digital_read pin:compare false tv: %u.%u pin3_change %u.%u", tv.tv_sec, tv.tv_usec, pin3_change.tv_sec, pin3_change.tv_usec);
 			}

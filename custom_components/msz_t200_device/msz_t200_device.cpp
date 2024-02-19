@@ -8,6 +8,10 @@ namespace msz_t200_device {
 
 static const char *TAG = "msz_t200_device";
 
+static const uint8_t msz_t200_header_first = 0x4D;
+static const uint8_t msz_t200_header_second = 0xD3;
+static const uint32_t msz_t200_register_number = 0x01FFFFFF;
+static const uint8_t msz_t200_single_operation_word_length_max = 128;
 
 float MszT200Base::get_setup_priority() const { 
 	
@@ -50,6 +54,8 @@ static bool msz_t200_device_digital_read_test(const struct timeval& current_time
 	return ret_val;
 }
 
+	uint32_t test_recv_val = 0x00000000;
+
 void MszT200Device::loop()  {
 #if 0
 	struct timeval tv;
@@ -78,6 +84,29 @@ void MszT200Device::loop()  {
 #else
 
 	write_reg(0x00456789, ctr++);
+	
+	uint32_t reg_read_value;
+	MszRc rc;
+	
+	rc = read_reg(0x00456789, &reg_read_value);
+	if (rc == MszRc::OK) {
+		#if 0
+		if (test_recv_val == 0) {
+			test_recv_val = reg_read_value;
+		} else {
+			if (test_recv_val != reg_read_value) {
+				ESP_LOGCONFIG(TAG, "Read register ERROR not expected value: 0x%08X should 0x%08X", test_recv_val, reg_read_value);
+				test_recv_val = 0;
+			}
+		}
+		test_recv_val++;
+		#endif
+	} else {
+		ESP_LOGCONFIG(TAG, "Read register ERROR rc: %d", rc);
+		test_recv_val = 0;
+	}
+	
+	
 #endif
 
 	uint32_t					gpio_no;
@@ -112,12 +141,9 @@ void MszT200Device::set_conf_mod1(uint8_t unit, uint8_t module, MszT200ModuleTyp
 	}
 }
 	
-bool MszT200Device::read_reg(uint8_t reg, uint8_t *value) {
 
-    ESP_LOGCONFIG(TAG, "setup ENTER read_reg reg: %u value: %u", reg, *value);
-    
-	return true;
-}
+
+
 
 uint32_t msz_t200_crc32_calc(uint8_t *data, const uint32_t data_len) {
 		
@@ -127,44 +153,94 @@ uint32_t msz_t200_crc32_calc(uint8_t *data, const uint32_t data_len) {
 	for (byte_no = 0; byte_no < data_len; byte_no++) {
 		crc32 += *(data + byte_no);
 	}	
-	
+//	ESP_LOGCONFIG(TAG, "crc32: %u", crc32);
+	    
 	return crc32;
 }
 
-MszRc MszT200Device::write_reg(uint32_t reg_addr, uint32_t value) {
+void MszT200Device::set_32bdata_value(uint8_t *data, uint32_t value) {
+	
+	*(data + 0) = (uint8_t)(value >> 24);
+	*(data + 1) = (uint8_t)(value >> 16);
+	*(data + 2) = (uint8_t)(value >> 8);
+	*(data + 3) = (uint8_t)(value >> 0);
+}
+
+uint32_t MszT200Device::get_32bdata_value(const uint8_t *data) {
+
+	uint32_t								_32bdata_value = 0;
+
+	_32bdata_value |= (uint32_t)(*(data + 0) << 24);
+	_32bdata_value |= (uint32_t)(*(data + 1) << 16);
+	_32bdata_value |= (uint32_t)(*(data + 2) << 8);
+	_32bdata_value |= (uint32_t)(*(data + 3) << 0);
+
+	return _32bdata_value;
+}
+
+void MszT200Device::create_header(uint8_t *data, const uint32_t reg_addr, const bool write_operation, const uint32_t burst_length) {
+	
+	*(data + 0) = msz_t200_header_first;
+	*(data + 1) = msz_t200_header_second;
+	this->set_32bdata_value((data + 2), (reg_addr & 0x00FFFFFF));
+	*(data + 6) = write_operation ? (uint8_t)(1 << 7) : 0x00;
+	*(data + 7) = burst_length;
+}
+
+MszRc MszT200Device::write_reg(const uint32_t reg_addr, const uint32_t reg_value) {
 
 	MszRc									rc = MszRc::OK;
 	uint8_t									data_wr[20];
 	uint32_t								crc32;
 	
-	data_wr[0] = 0x4D;
-	data_wr[1] = 0xD3;
-	data_wr[2] = 0x00;
-	data_wr[3] = (uint8_t)(reg_addr >> 16);
-	data_wr[4] = (uint8_t)(reg_addr >> 8);
-	data_wr[5] = (uint8_t)reg_addr;
-	data_wr[6] = (uint8_t)(1 << 7);
-	data_wr[7] = 0x01;
-	
-	data_wr[8] = 0xFF;
-	data_wr[9] = 0xFF;
-	data_wr[10] = 0xFF;
-	data_wr[11] = 0xFF;
-	
-	data_wr[12] = (uint8_t)(value >> 24);
-	data_wr[13] = (uint8_t)(value >> 16);
-	data_wr[14] = (uint8_t)(value >> 8);
-	data_wr[15] = (uint8_t)(value >> 0);
-	
-	crc32 = msz_t200_crc32_calc(data_wr, 16);
-	memcpy(&data_wr[16], &crc32, 4);
-	
-	this->enable();
-	this->write_array(data_wr, 20); 
-	this->disable();
-	
+	if (reg_addr < msz_t200_register_number) {
+		this->create_header(data_wr, reg_addr, true, 1);
+				
+		this->enable();
+		this->write_array(data_wr, 2); 
+		this->set_32bdata_value(&data_wr[8], reg_value);
+		this->write_array(&data_wr[2], 6);
+		crc32 = msz_t200_crc32_calc(data_wr, 12);
+		this->set_32bdata_value(&data_wr[12], crc32);
+		this->write_array(&data_wr[8], 8);
+
+		this->disable();
+	} else {
+		rc = MszRc::Inv_arg;
+	}
+
 	return rc;
 }
+
+MszRc MszT200Device::read_reg(const uint32_t reg_addr, uint32_t *reg_value) {
+
+	MszRc									rc = MszRc::OK;
+	uint8_t									data[20];
+	uint32_t								crc32_recv, crc32_calc, byte_no;
+	
+	ESP_LOGCONFIG(TAG, "setup ENTER read_reg reg_addr: %u", reg_addr);
+	
+	if (reg_addr < msz_t200_register_number) {
+		
+		this->create_header(data, reg_addr, false, 1);
+		this->enable();
+		this->write_array(data, 2); 
+		this->write_array(&data[2], 6);
+		this->read_array(&data[8], 8);
+		this->disable();
+		ESP_LOGCONFIG(TAG, "%02X %02X %02X %02X %02X %02X %02X %02X ", data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
+		crc32_recv = get_32bdata_value(&data[12]);
+		crc32_calc = msz_t200_crc32_calc(data, 12);
+		if (crc32_recv != crc32_calc) {
+			rc = MszRc::Inv_crc;
+		}
+	} else {
+		rc = MszRc::Inv_arg;
+	}
+
+	return rc;
+}
+
 
 void MszT200Device::update_reg(uint8_t pin, bool pin_value, uint8_t reg_addr) {
 
