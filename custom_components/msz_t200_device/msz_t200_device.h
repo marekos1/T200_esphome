@@ -32,18 +32,41 @@ class MszT200InstanceIdent {
 	uint32_t channel;
 };
 
-
+class MszT200DeviceStats {
 	
+	public:
+	uint32_t 						write_ok_ctr;
+	uint32_t						write_err_ctr;
+	uint32_t 						read_ok_ctr;
+	uint32_t						read_err_ctr;
+	
+	MszT200DeviceStats() : write_ok_ctr{0}, write_err_ctr{0}, read_ok_ctr{0}, read_err_ctr{0} {
+		
+	}
+};
+
 class MszT200Base : public Component {
  public:
 	void set_open_drain_ints(const bool value) { this->open_drain_ints_ = value; }
 	float get_setup_priority() const override;
 	MszRc gpio_read(const MszT200InstanceIdent& inst_ident, bool& gpio_state);
 	
-
+	uint32_t rd_ok_ctr = 0;
+    uint32_t rd_err_ctr = 0;
 	
 	bool gpio_state_[gpio_total];
 	struct timeval change_time_[gpio_total];
+	
+	uint32_t get_data(const MszT200InstanceIdent& ident) {
+		uint32_t data = 0;
+		
+		if (ident.channel == 1) {
+			data = rd_ok_ctr;
+		} else if (ident.channel == 2) {
+			data = rd_err_ctr;
+		}
+		return data;
+	}
 	
  protected:
 	// update registers with given pin value.
@@ -59,28 +82,27 @@ class MszT200Device : public MszT200Base,
     void setup() override;
     void loop() override;
     void dump_config() override;
-   
+       
     MszRc write_reg(const uint32_t reg_addr, const uint32_t reg_value);
-
-    MszRc read_reg(const uint32_t reg_addr, uint32_t *reg_value);
+    MszRc read_reg(const uint32_t reg_addr, uint32_t *reg_data);
     
-
-
     void update_reg(uint8_t pin, bool pin_value, uint8_t reg_a) override;
-    
     void set_conf_mod1(uint8_t unit, uint8_t module, MszT200ModuleType mode_type);
 
-    
-    int test_val;
     MszT200ModuleType unit1_module_type[4] = {MszT200ModuleType::NoneEmpty};
-    
+  
  private:
-	void set_32bdata_value(uint8_t *data, uint32_t value);
-	uint32_t get_32bdata_value(const uint8_t *data);
+	MszT200DeviceStats	stats;
+	struct timeval 							startup_tv;
+ 
+	uint32_t set_32bdata_value(uint8_t *data, const uint32_t value);
+	uint32_t get_32bdata_value(const uint8_t *data, uint32_t& value);
 	
-	void create_header(uint8_t *data, const uint32_t reg_addr, const bool write_operation, const uint32_t burst_length);
+	uint32_t send_header(uint8_t *data, const uint32_t reg_addr, const bool write_operation, const uint32_t burst_length);
+	uint32_t send_register_value(uint8_t *data, const uint32_t reg_value);
+	uint32_t recv_register_value(uint8_t *data, uint32_t& reg_value);
 	
-
+	void test1();
 };
 
 }  // namespace msz_t200_device
