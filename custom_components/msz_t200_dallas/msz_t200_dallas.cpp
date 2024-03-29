@@ -27,42 +27,28 @@ float temperature = 10.0f;
 
 void MszT200Dallas::update() {
 	
-	ESP_LOGCONFIG(TAG, "set_parent_was: %u parent_: %p" , set_parent_was ? 1 : 0, this->parent_);
+	//ESP_LOGCONFIG(TAG, "set_parent_was: %u parent_: %p" , set_parent_was ? 1 : 0, this->parent_);
 	
 	
 	uint32_t update_interval = get_update_interval();
-	ESP_LOGCONFIG(TAG, "update_interval: %u" , update_interval);
+//	ESP_LOGCONFIG(TAG, "update_interval: %u" , update_interval);
 	
-	
+
+#if 0
 	temperature += 0.05f;
 	if (this->temperature_sensor_ != nullptr) {
 	   ESP_LOGCONFIG(TAG, "publish temperature: %f" , temperature);
       this->temperature_sensor_->publish_state(temperature);
 	}
-	this->status_clear_warning();
-#if 0
-  uint8_t data[5];
-  if (!this->read_data_(data)) {
-    this->status_set_warning();
-    return;
-  }
-  const uint16_t raw_temperature = uint16_t(data[2]) * 10 + (data[3] & 0x7F);
-  float temperature = raw_temperature / 10.0f;
-  if ((data[3] & 0x80) != 0) {
-    // negative
-    temperature *= -1;
-  }
-
-  const uint16_t raw_humidity = uint16_t(data[0]) * 10 + data[1];
-  float humidity = raw_humidity / 10.0f;
-
-  ESP_LOGD(TAG, "Got temperature=%.2f°C humidity=%.2f%%", temperature, humidity);
-  if (this->temperature_sensor_ != nullptr)
-    this->temperature_sensor_->publish_state(temperature);
-  if (this->humidity_sensor_ != nullptr)
-    this->humidity_sensor_->publish_state(humidity);
-  this->status_clear_warning();
+#else
+	uint32_t data = this->parent_->get_data(instance_ident_);
+	if (this->temperature_sensor_ != nullptr) {
+//	   ESP_LOGCONFIG(TAG, "publish data: %f  instance_ident_.channelL: %u " , data, instance_ident_.channel);
+      this->temperature_sensor_->publish_state(data);
+	}
 #endif
+	
+	this->status_clear_warning();
 }
 
 void MszT200Dallas::setup() {
@@ -101,6 +87,14 @@ bool MszT200Dallas::read_data_(uint8_t *data) {
   }
 */
   return true;
+}
+
+void MszT200Dallas::set_inst_ident(uint8_t unit_id, uint8_t module_id, uint8_t channel) {
+	 
+	ESP_LOGCONFIG(TAG, "Enter uint_id: %u module_id: %u channel: %u" , unit_id, module_id, channel);
+	this->instance_ident_.unit_id = unit_id; 
+	this->instance_ident_.module_id = module_id; 
+	this->instance_ident_.channel = channel; 
 }
 
 }  // namespace msz_t200_dallas

@@ -62,14 +62,24 @@ sensor:
       name: "Living Room Temperature"
     humidity:
       name: "Living Room Humidity"
-    update_interval: 5s
+    update_interval: 3s
   - platform: msz_t200_dallas
     msz_t200_device: msz_t200_dev_1
     unit_id: 1
-    module_id: 2
+    module_id: 3
+    bus_id: 1
+    temperature:
+      name: "Write OK"
+    humidity:
+      name: "Dallas Humidity test"
+    update_interval: 3s
+  - platform: msz_t200_dallas
+    msz_t200_device: msz_t200_dev_1
+    unit_id: 1
+    module_id: 3
     bus_id: 2
     temperature:
-      name: "Dallas Temperature test"
+      name: "Write Err"
     humidity:
       name: "Dallas Humidity test"
     update_interval: 3s

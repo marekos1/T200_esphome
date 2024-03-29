@@ -27,7 +27,7 @@ float temperature = 10.0f;
 
 void MszT200Sens2::update() {
 	
-	ESP_LOGCONFIG(TAG, "set_parent_was: %u parent_: %p" , set_parent_was ? 1 : 0, this->parent_);
+//	ESP_LOGCONFIG(TAG, "set_parent_was: %u parent_: %p" , set_parent_was ? 1 : 0, this->parent_);
 	
 	
 	uint32_t update_interval = get_update_interval();
@@ -36,7 +36,7 @@ void MszT200Sens2::update() {
 	
 	temperature += 1;
 	if (this->temperature_sensor_ != nullptr) {
-	   ESP_LOGCONFIG(TAG, "publish temperature: %f" , temperature);
+//	   ESP_LOGCONFIG(TAG, "publish temperature: %f" , temperature);
       this->temperature_sensor_->publish_state(temperature);
 	}
 	this->status_clear_warning();
@@ -56,7 +56,7 @@ void MszT200Sens2::update() {
   const uint16_t raw_humidity = uint16_t(data[0]) * 10 + data[1];
   float humidity = raw_humidity / 10.0f;
 
-  ESP_LOGD(TAG, "Got temperature=%.2f°C humidity=%.2f%%", temperature, humidity);
+//  ESP_LOGD(TAG, "Got temperature=%.2f°C humidity=%.2f%%", temperature, humidity);
   if (this->temperature_sensor_ != nullptr)
     this->temperature_sensor_->publish_state(temperature);
   if (this->humidity_sensor_ != nullptr)
