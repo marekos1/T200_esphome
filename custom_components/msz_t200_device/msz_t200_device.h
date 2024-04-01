@@ -84,7 +84,10 @@ class MszT200Device : public MszT200Base,
     void dump_config() override;
        
     MszRc write_reg(const uint32_t reg_addr, const uint32_t reg_value);
+	MszRc write_registers(const uint32_t reg_addr, const uint32_t *reg_data, const uint32_t regs_count);
+	
     MszRc read_reg(const uint32_t reg_addr, uint32_t *reg_data);
+	MszRc read_registers(const uint32_t reg_addr, uint32_t *reg_data, const uint32_t regs_count);
     
     void update_reg(uint8_t pin, bool pin_value, uint8_t reg_a) override;
     void set_conf_mod1(uint8_t unit, uint8_t module, MszT200ModuleType mode_type);
@@ -100,9 +103,11 @@ class MszT200Device : public MszT200Base,
 	
 	uint32_t send_header(uint8_t *data, const uint32_t reg_addr, const bool write_operation, const uint32_t burst_length);
 	uint32_t send_register_value(uint8_t *data, const uint32_t reg_value);
+	uint32_t send_registers_value(uint8_t *data, const uint32_t *reg_data, const uint32_t regs_count);
 	uint32_t recv_register_value(uint8_t *data, uint32_t& reg_value);
+	uint32_t recv_registers_value(uint8_t *data, uint32_t *reg_data, const uint32_t regs_count);
 	
-	void test1();
+	void test1(bool& read, const uint32_t reg_addr, uint32_t *reg_test_value, const uint32_t reg_test_count);
 };
 
 }  // namespace msz_t200_device
