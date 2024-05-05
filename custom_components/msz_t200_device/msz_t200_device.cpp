@@ -105,13 +105,37 @@ void MszT200Device::test1(bool& read, const uint32_t reg_addr, uint32_t *reg_tes
 		last_stats_show.tv_sec += 3;
 		ESP_LOGCONFIG(TAG, "Stats: Write ok: %8u err: %8u",  this->stats.write_ok_ctr, this->stats.write_err_ctr);
 		ESP_LOGCONFIG(TAG, "Stats: Read  ok: %8u err: %8u",  this->stats.read_ok_ctr, this->stats.read_err_ctr);
+	
+#if MSZ_T200_SW_OPTION_TEXT_SENSOR   
+	    uint32_t i;
+	    static uint32_t sensor_ctr[8] = {466, 798, 133213, 8979, 32156, 48949, 78999, 1111};
+	    char text[128];
+	    
+		for (i = 0; i < 2; i++) {
+			if (this->text_sensors_ptr[i]) {
+				snprintf(text, 128, " Sensor %u value %u name: %s", i + 1, sensor_ctr[i], this->text_sensors_ptr[i]->get_name().c_str());
+				this->text_sensors_ptr[i]->publish_state(text);
+			}
+			sensor_ctr[i]++;
+		}
+		
+		text_sensor::TextSensor* ts_spi_stat;
+		
+		ts_spi_stat = get_text_sensor_by_name("SpiStat");
+		
+		if (ts_spi_stat) {
+			stats.print_stats(text, 128);
+			ts_spi_stat->publish_state(text);
+		}
+		
+#endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */		
 	}
 }
 
 void MszT200Device::loop() {
 	
-	static uint32_t 						reg_test1_value[1] = {	0x33333333};
-	static uint32_t 						reg_test2_value[128] = { 	0x11111111, 0x88888888, 0x55555555, 0xAAAAAAAA,
+	static uint32_t 						reg_test1_value[1] = {0x33333333};
+	static uint32_t 						reg_test2_value[128] = {0x11111111, 0x88888888, 0x55555555, 0xAAAAAAAA,
 																	0x18181818, 0x5A5A5A5A, 0x78787878, 0x185A185A};
 	static bool								reg_test1_read = false, reg_test2_read = false;
 	static uint32_t							test_ctr = 0;
@@ -140,7 +164,9 @@ void MszT200Device::setup() {
 
 void MszT200Device::dump_config() {
 	
-    ESP_LOGCONFIG(TAG, "msz t200 component");
+    ESP_LOGCONFIG(TAG, "msz t200 component get_component_source: %s", get_component_source());
+ //   ESP_LOGCONFIG(TAG, "msz t200 component get_object_id: %s", this->get_object_id().c_str());
+ //   ESP_LOGCONFIG(TAG, "msz t200 component get_name: %s", this->get_name().c_str());   
     LOG_PIN("  CS Pin:", this->cs_);
 }
 
@@ -153,6 +179,36 @@ void MszT200Device::set_conf_mod1(uint8_t unit, uint8_t module, MszT200ModuleTyp
 		}
 	}
 }
+
+
+#if MSZ_T200_SW_OPTION_TEXT_SENSOR   
+
+text_sensor::TextSensor* MszT200Device::get_new_text_sensor(int i) { 
+	
+	ESP_LOGCONFIG(TAG, "Enter i: %d", i);
+	this->text_sensors_ptr[i] = new text_sensor::TextSensor();
+	
+	return this->text_sensors_ptr[i];
+}
+
+text_sensor::TextSensor* MszT200Device::get_text_sensor_by_name(const char *name) { 
+	
+	text_sensor::TextSensor					*ts = NULL;
+	uint32_t								i;
+	    
+	for (i = 0; i < 8; i++) {
+		if (this->text_sensors_ptr[i]) {
+			if (this->text_sensors_ptr[i]->get_name().str().compare(name) == 0) {
+				ts = this->text_sensors_ptr[i];
+				break;
+			}
+		}
+	}
+	
+	return ts;
+}
+
+#endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */
 
 uint32_t msz_t200_crc32_calc(uint8_t *data, const uint32_t data_len) {
 		

@@ -1,12 +1,16 @@
 #ifndef __MSZ_T200_COMPNENT__
 #define __MSZ_T200_COMPNENT__
 
-#include "esphome/core/component.h"
+
 #include "esphome/components/spi/spi.h"
-#include "esphome/core/hal.h"
+#include "esphome/core/component.h"
+#include "esphome/components/text_sensor/text_sensor.h"
+
 
 namespace esphome {
 namespace msz_t200_device {
+	
+#define MSZ_T200_SW_OPTION_TEXT_SENSOR	1
 	
 	
 static const uint32_t gpio_total = 32;	
@@ -43,9 +47,17 @@ class MszT200DeviceStats {
 	MszT200DeviceStats() : write_ok_ctr{0}, write_err_ctr{0}, read_ok_ctr{0}, read_err_ctr{0} {
 		
 	}
+	
+	const char* print_stats(char *txt, uint32_t text_length) {
+		
+		snprintf(txt, text_length, "Write ok: %u err: %u Read ok: %u err: %u", write_ok_ctr, write_err_ctr, read_ok_ctr, read_err_ctr);
+		
+		return txt;
+	}
 };
 
-class MszT200Base : public Component {
+
+class MszT200Base : public Component, public text_sensor::TextSensor {
  public:
 	void set_open_drain_ints(const bool value) { this->open_drain_ints_ = value; }
 	float get_setup_priority() const override;
@@ -56,6 +68,8 @@ class MszT200Base : public Component {
 	
 	bool gpio_state_[gpio_total];
 	struct timeval change_time_[gpio_total];
+	
+	
 	
 	uint32_t get_data(const MszT200InstanceIdent& ident) {
 		uint32_t data = 0;
@@ -93,9 +107,17 @@ class MszT200Device : public MszT200Base,
     void set_conf_mod1(uint8_t unit, uint8_t module, MszT200ModuleType mode_type);
 
     MszT200ModuleType unit1_module_type[4] = {MszT200ModuleType::NoneEmpty};
-  
+    
+#if MSZ_T200_SW_OPTION_TEXT_SENSOR   
+    text_sensor::TextSensor* text_sensors_ptr[8];
+    text_sensor::TextSensor* get_new_text_sensor(int i);
+    
+    text_sensor::TextSensor* get_text_sensor_by_name(const char *name);
+    
+#endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */
+
  private:
-	MszT200DeviceStats	stats;
+	MszT200DeviceStats						stats;
 	struct timeval 							startup_tv;
  
 	uint32_t set_32bdata_value(uint8_t *data, const uint32_t value);

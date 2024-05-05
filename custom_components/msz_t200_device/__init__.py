@@ -1,7 +1,8 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import spi
-from esphome.const import CONF_ID
+from esphome.components import text_sensor
+from esphome.const import CONF_ID, CONF_TEXT_SENSORS
 
 
 AUTO_LOAD = ["msz_t200_gpio", "msz_t200_sens2", "msz_t200_dallas"]
@@ -30,6 +31,9 @@ CONFIG_SCHEMA = (
 	cv.Schema(
 		{
 			cv.GenerateID(): cv.declare_id(MszT200Device),
+			cv.Optional(CONF_TEXT_SENSORS): cv.ensure_list(
+				text_sensor.text_sensor_schema()
+			),
 			cv.Optional(CONF_UNIT_MODULE_1_1, default="none"): cv.enum(MSZ_T200_MODULE_TYPE),
 			cv.Optional(CONF_UNIT_MODULE_1_2, default="none"): cv.enum(MSZ_T200_MODULE_TYPE),
 			cv.Optional(CONF_UNIT_MODULE_1_3, default="none"): cv.enum(MSZ_T200_MODULE_TYPE),
@@ -40,12 +44,16 @@ CONFIG_SCHEMA = (
 	.extend(spi.spi_device_schema(cs_pin_required=True))
 )
 
-def to_code(config):
+async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
-    yield cg.register_component(var, config)
-    yield spi.register_spi_device(var, config)
+    await cg.register_component(var, config)
+    await spi.register_spi_device(var, config)
 
     cg.add(var.set_conf_mod1(1,1,config[CONF_UNIT_MODULE_1_1]))
     cg.add(var.set_conf_mod1(1,2,config[CONF_UNIT_MODULE_1_2]))
     cg.add(var.set_conf_mod1(1,3,config[CONF_UNIT_MODULE_1_3]))
     cg.add(var.set_conf_mod1(1,4,config[CONF_UNIT_MODULE_1_4]))
+    
+    for i, conf in enumerate(config[CONF_TEXT_SENSORS]):
+        text = cg.Pvariable(conf[CONF_ID], var.get_new_text_sensor(i))
+        await text_sensor.register_text_sensor(text, conf)
