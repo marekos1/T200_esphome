@@ -1,7 +1,7 @@
 esphome:
   name: esphome-web-dfcb8c
   includes:
-#    - custom_components/msz_t200_device/msz_t200_device.h
+    - custom_components/msz_t200_device/msz_t200_device.h
 #    - custom_components/msz_t200_text_sens/msz_t200_text_sens.h
 #    - custom_components/msz_t200_text_sens2/msz_t200_text_sens2.h
 
@@ -135,7 +135,7 @@ binary_sensor:
       msz_t200_device: msz_t200_dev_1
       unit_id: 1
       module_id: 1
-      number: 2
+      number: 1
       mode:
         input: true
         pullup: true
@@ -146,8 +146,7 @@ binary_sensor:
       msz_t200_device: msz_t200_dev_1
       unit_id: 1
       module_id: 1
-      # Use pin number 1
-      number: 3
+      number: 2
       # One of INPUT or INPUT_PULLUP
       mode:
         input: true

@@ -146,6 +146,9 @@ bool MszT200GPIOPin::digital_read() {
 //	return this->digital_read_prv(this->instance_ident_.unit_id, this->instance_ident_.module_id, this->instance_ident_.channel) != this->inverted_; 
 	
 	this->parent_->gpio_read(this->instance_ident_, ret_val);
+	if (ret_val == true) {
+		ESP_LOGCONFIG(TAG, "Read TRUE");
+	}
 	
 	return ret_val;
 }
