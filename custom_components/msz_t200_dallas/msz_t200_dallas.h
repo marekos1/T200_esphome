@@ -19,7 +19,7 @@ class MszT200Dallas : public PollingComponent {
 	void update() override;
   
 	void set_parent(msz_t200_device::MszT200Base *parent);
-	void set_inst_ident(uint8_t unit_id, uint8_t module_id, uint8_t channel);
+	void set_inst_ident(uint8_t unit_id, uint8_t module_id, uint8_t channel_id);
 
 	void set_temperature_sensor(sensor::Sensor *temperature_sensor) { temperature_sensor_ = temperature_sensor; }
 	void set_humidity_sensor(sensor::Sensor *humidity_sensor) { humidity_sensor_ = humidity_sensor; }

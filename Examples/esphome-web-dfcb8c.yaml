@@ -135,6 +135,7 @@ binary_sensor:
       msz_t200_device: msz_t200_dev_1
       unit_id: 1
       module_id: 1
+      channel_id: 1
       number: 1
       mode:
         input: true
@@ -146,6 +147,7 @@ binary_sensor:
       msz_t200_device: msz_t200_dev_1
       unit_id: 1
       module_id: 1
+      channel_id: 2
       number: 2
       # One of INPUT or INPUT_PULLUP
       mode:
@@ -160,6 +162,7 @@ switch:
       msz_t200_device: msz_t200_dev_1
       unit_id: 1
       module_id: 1
+      channel_id: 4
       number: 4
       mode:
         input: true
@@ -172,8 +175,9 @@ output:
     pin:
       msz_t200_device: msz_t200_dev_1
       unit_id: 1
-      module_id: 1
-      number: 5
+      module_id: 3
+      channel_id: 1
+      number: 17
       mode:
         input: true
         pullup: true
@@ -183,18 +187,13 @@ output:
     pin:
       msz_t200_device: msz_t200_dev_1
       unit_id: 1
-      module_id: 1
-      number: 6
+      module_id: 3
+      channel_id: 2
+      number: 18
       mode:
         input: true
         pullup: true
       inverted: false
-
-button:
-  - platform: output
-    name: "Generic Output"
-    output: test_button
-    duration: 5000ms
 
 light:
   - platform: fastled_clockless
@@ -203,7 +202,6 @@ light:
     num_leds: 1
     rgb_order: GRB
     name: "FastLED WS2811 Light"    
-  
   - platform: binary
     name: "Desk Lamp"
     output: light_output

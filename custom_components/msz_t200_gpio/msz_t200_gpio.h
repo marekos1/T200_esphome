@@ -23,10 +23,10 @@ class MszT200GPIOPin : public GPIOPin {
 
 	void set_parent(msz_t200_device::MszT200Base *parent);
 	
-	void set_inst_ident(uint8_t unit_id, uint8_t module_id, uint8_t channel) { 
+	void set_inst_ident(uint8_t unit_id, uint8_t module_id, uint8_t channel_id) { 
 		this->instance_ident_.unit_id = unit_id - 1; 
 		this->instance_ident_.module_id = module_id - 1; 
-		this->instance_ident_.channel = channel - 1; 
+		this->instance_ident_.channel_id = channel_id - 1; 
 	}
 	
 	

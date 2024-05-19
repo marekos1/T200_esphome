@@ -89,12 +89,12 @@ bool MszT200Dallas::read_data_(uint8_t *data) {
   return true;
 }
 
-void MszT200Dallas::set_inst_ident(uint8_t unit_id, uint8_t module_id, uint8_t channel) {
+void MszT200Dallas::set_inst_ident(uint8_t unit_id, uint8_t module_id, uint8_t channel_id) {
 	 
-	ESP_LOGCONFIG(TAG, "Enter uint_id: %u module_id: %u channel: %u" , unit_id, module_id, channel);
+	ESP_LOGCONFIG(TAG, "Enter uint_id: %u module_id: %u channel_id: %u" , unit_id, module_id, channel_id);
 	this->instance_ident_.unit_id = unit_id; 
 	this->instance_ident_.module_id = module_id; 
-	this->instance_ident_.channel = channel; 
+	this->instance_ident_.channel_id = channel_id; 
 }
 
 }  // namespace msz_t200_dallas

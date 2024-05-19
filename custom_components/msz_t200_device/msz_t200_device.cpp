@@ -18,17 +18,41 @@ float MszT200Base::get_setup_priority() const {
 	return setup_priority::IO;
 }
 
+uint32_t MszT200Base::get_inst_idx(const uint32_t unit_no, const uint32_t module_no, const uint32_t inst_no) {
+	
+	uint32_t								inst_idx;
+	
+	inst_idx = unit_no * 4 + module_no * 8 + inst_no;
+	
+	return inst_idx;
+}
+
 MszRc MszT200Base::gpio_read(const MszT200InstanceIdent& inst_ident, bool& gpio_state) {
 		
-	MszRc								rc = MszRc::OK;
+	MszRc									rc = MszRc::OK;
 		
 //	ESP_LOGCONFIG(TAG, "Enter unit_id: %u module_id: %u channel: %u", inst_ident.unit_id, inst_ident.module_id, inst_ident.channel);
-	if ((inst_ident.unit_id == 0) && (inst_ident.module_id == 0) && (inst_ident.channel == 0)) {
+	if ((inst_ident.unit_id == 0) && (inst_ident.module_id == 0) && (inst_ident.channel_id == 0)) {
 		gpio_state = gpio_state_[0];
-	} else if ((inst_ident.unit_id == 0) && (inst_ident.module_id == 0) && (inst_ident.channel == 1)) {
+	} else if ((inst_ident.unit_id == 0) && (inst_ident.module_id == 0) && (inst_ident.channel_id == 1)) {
 		gpio_state = gpio_state_[1];
 	} else {
 		rc = MszRc::Inv_arg;
+	}
+	
+	return rc;
+}
+
+MszRc MszT200Base::gpio_write(const MszT200InstanceIdent& inst_ident, const bool gpio_state) {
+		
+	MszRc									rc = MszRc::OK;
+	uint32_t								inst_idx;
+	
+	ESP_LOGCONFIG(TAG, "Enter unit_id: %u module_id: %u channel_id: %u gpio_state: %d", inst_ident.unit_id, inst_ident.module_id, inst_ident.channel_id, gpio_state);
+	inst_idx = get_inst_idx(inst_ident.unit_id, inst_ident.module_id, inst_ident.channel_id);
+	if (gpio_state != gpio_output_set_state[inst_idx]) {
+		gpio_output_set_state[inst_idx] = gpio_state;
+		gpio_output_change_state[inst_ident.module_id] = true;	
 	}
 	
 	return rc;
@@ -132,6 +156,15 @@ void MszT200Device::test1(bool& read, const uint32_t reg_addr, uint32_t *reg_tes
 	}
 }
 
+void MszT200Device::get_unit_conf(const uint32_t unit_conf_reg, MszT200DeviceSlaveModuleConf& conf) {
+	
+	conf.clear();
+	conf.unit_module_type[0] = static_cast<MszT200ModuleType>((unit_conf_reg >> 0) & 0x000000FF);
+	conf.unit_module_type[1] = static_cast<MszT200ModuleType>((unit_conf_reg >> 8) & 0x000000FF);
+	conf.unit_module_type[2] = static_cast<MszT200ModuleType>((unit_conf_reg >> 16) & 0x000000FF);
+	conf.unit_module_type[3] = static_cast<MszT200ModuleType>((unit_conf_reg >> 24) & 0x000000FF);	
+}
+
 bool MszT200Device::detect_slave(MszT200DeviceSlaveStatus& status) {
 	
 	bool									detected = false;
@@ -149,10 +182,7 @@ bool MszT200Device::detect_slave(MszT200DeviceSlaveStatus& status) {
 			 	status.hw_rev = reg_read_value[2];
 			 	status.sw_ver = reg_read_value[3];
 			 	ESP_LOGCONFIG(TAG, "Found slave HW rev: %u SW ver: %u", status.hw_rev, status.sw_ver);
-				status.module_conf.unit_module_type[0] = static_cast<MszT200ModuleType>((reg_read_value[6] >> 0) & 0x000000FF);
-				status.module_conf.unit_module_type[1] = static_cast<MszT200ModuleType>((reg_read_value[6] >> 8) & 0x000000FF);
-				status.module_conf.unit_module_type[2] = static_cast<MszT200ModuleType>((reg_read_value[6] >> 16) & 0x000000FF);
-				status.module_conf.unit_module_type[3] = static_cast<MszT200ModuleType>((reg_read_value[6] >> 24) & 0x000000FF);				
+			 	get_unit_conf(reg_read_value[6], status.module_conf);				
 			 	ESP_LOGCONFIG(TAG, "Module 0 config: %u %u %u %u", status.module_conf.unit_module_type[0], status.module_conf.unit_module_type[1], status.module_conf.unit_module_type[2], status.module_conf.unit_module_type[3]);
 			 	
 			} else {
@@ -199,24 +229,90 @@ MszRc MszT200Device::apply_module_configuration(const MszT200DeviceSlaveModuleCo
 	return rc;
 }
 
+MszRc MszT200Device::read_module_status_by_type(const uint32_t unit_no, const uint32_t module_no, const MszT200ModuleType module_type, 
+												const uint8_t status_reg_value) {
+	
+	MszRc									rc = MszRc::OK;
+	uint32_t								inst_no, inst_idx;
+	bool									new_state;
+	
+	switch (module_type) {
+	case MszT200ModuleType::Input8:
+		for (inst_no = 0; inst_no < 8; inst_no++) {
+			new_state = status_reg_value & (1 << inst_no);
+			inst_idx = get_inst_idx(unit_no, module_no, inst_no);
+			if (new_state != this->gpio_state_[inst_idx]) {
+				ESP_LOGCONFIG(TAG, "Input8 unit_no: %u module_no: %u inst_no: %u inst_idx: %u State change: %u", 
+													unit_no, module_no, inst_no, inst_idx, new_state);
+				this->gpio_state_[inst_idx] = new_state;
+			}
+		}
+		break;
+	default:
+		rc = MszRc::Inv_arg;
+		break;
+	}
+		
+	return rc;	
+}
+
 MszRc MszT200Device::read_module_status() {
 	
 	MszRc									rc = MszRc::OK;
-	uint32_t								reg_read_value[4], reg_no;
-	bool									new_state;
+	uint32_t								reg_read_value[8], unit_no, module_no;
+	MszT200DeviceSlaveModuleConf			unit_module_conf;
+	uint8_t									unit_module_status_reg_value;
 	
-	rc = read_registers(0x0000000A, reg_read_value, 4);
+	rc = read_registers(0x00000006, reg_read_value, 8);
 	if (rc == MszRc::OK) {
-		new_state = reg_read_value[0] & (1 << 0);
-		if (new_state != this->gpio_state_[0]) {
-			ESP_LOGCONFIG(TAG, "State change: %u", new_state);
-			this->gpio_state_[0] = new_state;
+		for (unit_no = 0; unit_no < 4; unit_no++) {
+			if (reg_read_value[unit_no]) {
+				get_unit_conf(reg_read_value[unit_no], unit_module_conf);	
+				rc = check_module_configuration(unit_module_conf);
+				if (rc == MszRc::OK) {
+					for (module_no = 0; module_no < 4; module_no++) {
+						unit_module_status_reg_value = (uint8_t)((reg_read_value[4] >> (8 * module_no)) & 0x000000FF);
+						read_module_status_by_type(unit_no, module_no, unit_module_conf.unit_module_type[module_no], unit_module_status_reg_value);
+					}
+				} else {
+					break;
+				}
+			}
 		}
 	}
 
 	return rc;
 }
+
+MszRc MszT200Device::write_module_state() {
 	
+	MszRc									rc = MszRc::OK;
+	uint32_t								unit_no, module_no, reg_value, inst_idx;
+		
+	for (unit_no = 0; unit_no < 4; unit_no++) {
+		for (module_no = 0; module_no < 4; module_no++) {
+			if (this->config.unit_module_type[module_no] == MszT200ModuleType::Output8) {
+				if (gpio_output_change_state[unit_no]) {
+					ESP_LOGCONFIG(TAG, "Change state on unit_no: %u", unit_no);
+					reg_value = 0;
+					for (inst_idx = 0; inst_idx < 32; inst_idx++) {
+						if (gpio_output_set_state[inst_idx]) {
+							reg_value |= 1 << inst_idx;
+						}
+					} 
+					ESP_LOGCONFIG(TAG, "Write register 14 to reg_value: %u", reg_value);
+					rc = write_registers(14, &reg_value, 1);
+					if (rc == MszRc::OK) {
+						gpio_output_change_state[unit_no] = false;
+					}
+				}
+				break;
+			}
+		}
+	}
+	
+	return rc;
+}
 
 
 void MszT200Device::loop() {
@@ -248,7 +344,13 @@ void MszT200Device::loop() {
 	
     gettimeofday(&current_tv, NULL);
 	if ((this->slave_status.detected) && (this->slave_status.configured)) {
-		read_module_status();
+		rc = read_module_status();
+	//	rc = MszRc::OK;
+		if (rc == MszRc::OK) {
+			write_module_state();
+		} else {	
+			slave_new_status.configured = false;
+		}
 	} else {
 		if (timeval_compare(current_tv, this->startup_tv)) {
 			slave_new_status.clear();
@@ -496,7 +598,7 @@ MszRc MszT200Device::write_registers(const uint32_t reg_addr, const uint32_t *re
 	uint8_t									data[2 + 6 + (4 * msz_t200_register_access_in_single_operation) + 4];
 	uint32_t								data_idx, crc32;
 	
-//	ESP_LOGCONFIG(TAG, "ENTER write_reg reg_addr: %u reg_value: %u regs_count: %u", reg_addr, *reg_data, regs_count);
+	ESP_LOGCONFIG(TAG, "ENTER write_reg reg_addr: %u reg_value: %u regs_count: %u", reg_addr, *reg_data, regs_count);
 	if ((reg_addr < msz_t200_register_number) && (regs_count <= msz_t200_register_access_in_single_operation) && (reg_addr + regs_count) <= msz_t200_register_number) {
 		data_idx = 0;
 		this->enable();
@@ -510,7 +612,7 @@ MszRc MszT200Device::write_registers(const uint32_t reg_addr, const uint32_t *re
 		rc = MszRc::Inv_arg;
 		this->stats.write_err_ctr++;
 	}
-//	ESP_LOGCONFIG(TAG, "EXIT write_reg rc: %u", rc);
+	ESP_LOGCONFIG(TAG, "EXIT write_reg rc: %u", rc);
 
 	return rc;
 }

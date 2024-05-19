@@ -13,7 +13,7 @@ namespace msz_t200_device {
 #define MSZ_T200_SW_OPTION_TEXT_SENSOR	1
 	
 	
-static const uint32_t gpio_total = 32;	
+static const uint32_t gpio_total = 128;	
 	
 enum class MszRc {
 	OK = 0,
@@ -34,7 +34,7 @@ class MszT200InstanceIdent {
  public:
 	uint8_t unit_id;
 	uint8_t module_id;
-	uint32_t channel;
+	uint32_t channel_id;
 };
 
 class MszT200DeviceStats {
@@ -106,12 +106,19 @@ class MszT200Base : public Component, public text_sensor::TextSensor {
  public:
 	void set_open_drain_ints(const bool value) { this->open_drain_ints_ = value; }
 	float get_setup_priority() const override;
+	
+	uint32_t get_inst_idx(const uint32_t unit_no, const uint32_t module_no, const uint32_t inst_no);
+	
 	MszRc gpio_read(const MszT200InstanceIdent& inst_ident, bool& gpio_state);
+	MszRc gpio_write(const MszT200InstanceIdent& inst_ident, const bool gpio_state);
 	
 	uint32_t rd_ok_ctr = 0;
     uint32_t rd_err_ctr = 0;
 	
 	bool gpio_state_[gpio_total];
+	bool gpio_output_set_state[gpio_total];
+	bool gpio_output_change_state[4];
+	
 	struct timeval change_time_[gpio_total];
 	
 	
@@ -119,9 +126,9 @@ class MszT200Base : public Component, public text_sensor::TextSensor {
 	uint32_t get_data(const MszT200InstanceIdent& ident) {
 		uint32_t data = 0;
 		
-		if (ident.channel == 1) {
+		if (ident.channel_id == 1) {
 			data = rd_ok_ctr;
-		} else if (ident.channel == 2) {
+		} else if (ident.channel_id == 2) {
 			data = rd_err_ctr;
 		}
 		return data;
@@ -172,10 +179,14 @@ class MszT200Device : public MszT200Base,
 	uint32_t recv_register_value(uint8_t *data, uint32_t& reg_value);
 	uint32_t recv_registers_value(uint8_t *data, uint32_t *reg_data, const uint32_t regs_count);
 	
+
+	void get_unit_conf(const uint32_t unit_conf_reg, MszT200DeviceSlaveModuleConf& conf);
 	bool detect_slave(MszT200DeviceSlaveStatus& status);
 	MszRc check_module_configuration(const MszT200DeviceSlaveModuleConf& read_module_conf);
 	MszRc apply_module_configuration(const MszT200DeviceSlaveModuleConf& module_conf);
+	MszRc read_module_status_by_type(const uint32_t unit_no, const uint32_t module_no, const MszT200ModuleType module_type, const uint8_t status_reg_value);
 	MszRc read_module_status();
+	MszRc write_module_state();
     
 #if MSZ_T200_SW_OPTION_TEXT_SENSOR   
     text_sensor::TextSensor* text_sensors_ptr[8];

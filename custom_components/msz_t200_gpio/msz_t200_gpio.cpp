@@ -132,7 +132,7 @@ void MszT200GPIOPin::setup() {
 
 void MszT200GPIOPin::pin_mode(gpio::Flags flags) { 
 	
-	this->pin_mode_prv(this->instance_ident_.channel, flags);
+	this->pin_mode_prv(this->instance_ident_.channel_id, flags);
 }
 
 bool MszT200GPIOPin::digital_read() { 
@@ -143,30 +143,30 @@ bool MszT200GPIOPin::digital_read() {
 //	ESP_LOGCONFIG(TAG, "Enter digital_read pin_ %d", this->pin_);
 //	ret_val = this->parent_->read_reg(6, &reg_value);
 	
-//	return this->digital_read_prv(this->instance_ident_.unit_id, this->instance_ident_.module_id, this->instance_ident_.channel) != this->inverted_; 
+//	return this->digital_read_prv(this->instance_ident_.unit_id, this->instance_ident_.module_id, this->instance_ident_.channel_id) != this->inverted_; 
 	
 	this->parent_->gpio_read(this->instance_ident_, ret_val);
-	if (ret_val == true) {
-		ESP_LOGCONFIG(TAG, "Read TRUE");
-	}
+	
+//	if (ret_val == true) {
+//		ESP_LOGCONFIG(TAG, "Read TRUE");
+//	}
 	
 	return ret_val;
 }
 void MszT200GPIOPin::digital_write(bool value) { 
 	
-	ESP_LOGCONFIG(TAG, "Enter digital_write channel %d value: %d", this->instance_ident_.channel, value);
-
-#if 0	
-	this->parent_->digital_write(this->instance_ident_.channel, value != this->inverted_);
+	ESP_LOGCONFIG(TAG, "Enter digital_write unit_id: %u module_id: %u channel_id %u value: %d", this->instance_ident_.unit_id, this->instance_ident_.module_id, this->instance_ident_.channel_id, value);
+#if 1
+	this->parent_->gpio_write(this->instance_ident_, value != this->inverted_);
 #else
-	this->digital_write_prv(this->instance_ident_.channel, value != this->inverted_);
+	this->digital_write_prv(this->instance_ident_.channel_id, value != this->inverted_);
 #endif
 }
 
 std::string MszT200GPIOPin::dump_summary() const {
 	
   char buffer[32];
-  snprintf(buffer, sizeof(buffer), "%u via MszT200", this->instance_ident_.channel);
+  snprintf(buffer, sizeof(buffer), "%u via MszT200", this->instance_ident_.channel_id);
   return buffer;
   
 }
