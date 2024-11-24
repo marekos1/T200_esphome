@@ -67,16 +67,30 @@ class MszT200DeviceSlaveModuleConf {
 			type = MszT200ModuleType::NoneEmpty;
 		}
 	}
+	
+	bool comapre(const MszT200DeviceSlaveModuleConf& data) {
+		
+		bool								diff = false;
+		uint32_t							module_no;
+		
+		for (module_no = 0; module_no < 4; module_no++) {
+			if (data.unit_module_type != unit_module_type) {
+				diff = true;
+				break;
+			}
+		}
+		
+		return diff;
+	}
 };
 
-class MszT200DeviceSlaveStatus {
+class MszT200DeviceSlaveStatusData {
 	public:
 	
 	bool							detected;
 	bool							configured;
 	uint32_t						hw_rev;
 	uint32_t						sw_ver;
-	
 	MszT200DeviceSlaveModuleConf	module_conf;
 	
 	void clear() {
@@ -87,18 +101,60 @@ class MszT200DeviceSlaveStatus {
 		module_conf.clear();
 	}
 	
+	bool comapre(const MszT200DeviceSlaveStatusData& data) {
+		
+		bool								diff = false;
+		
+		if ((data.detected != detected) || (data.configured != configured) || 
+			(data.hw_rev != hw_rev) || (data.sw_ver != sw_ver)) {
+			diff = true;
+		}
+		
+		return diff;
+	}
+};
+
+class MszT200DeviceSlaveStatus {
+	public:
+	
+		
+	
+	void clear() {
+		data_m.clear();
+	}
+	
+	void get(MszT200DeviceSlaveStatusData& data) {
+		
+		data = data_m;
+	}
+	bool set(const MszT200DeviceSlaveStatusData& data) {
+		
+		bool								diff = false;
+		
+		diff = data_m.comapre(data);
+		if (diff) {
+			data_m = data;
+		}
+		
+		return diff;
+	}
+		
 	const char* print_status(char *txt, uint32_t text_length) {
 		
 		int 								ct;
 		
 		ct = 0;
-		ct += snprintf(txt + ct, text_length - ct, "Detect: %u Configured: %u", detected, configured);
-		if (detected) {
-			ct += snprintf(txt + ct, text_length - ct, " HW rev: %u Sw Ver: %u", hw_rev, sw_ver);
+		ct += snprintf(txt + ct, text_length - ct, "Detect: %u Configured: %u", data_m.detected, data_m.configured);
+		if (data_m.detected) {
+			ct += snprintf(txt + ct, text_length - ct, " HW rev: %u Sw Ver: %u", data_m.hw_rev, data_m.sw_ver);
 		}
 		
 		return txt;
 	}
+	
+	private:
+	
+		MszT200DeviceSlaveStatusData	data_m;
 };
 
 
@@ -149,10 +205,8 @@ class MszT200Device : public MszT200Base,
     void loop() override;
     void dump_config() override;
        
-    MszRc write_reg(const uint32_t reg_addr, const uint32_t reg_value);
 	MszRc write_registers(const uint32_t reg_addr, const uint32_t *reg_data, const uint32_t regs_count);
 	
-    MszRc read_reg(const uint32_t reg_addr, uint32_t *reg_data);
 	MszRc read_registers(const uint32_t reg_addr, uint32_t *reg_data, const uint32_t regs_count);
     
     void update_reg(uint8_t pin, bool pin_value, uint8_t reg_a) override;
@@ -181,7 +235,7 @@ class MszT200Device : public MszT200Base,
 	
 
 	void get_unit_conf(const uint32_t unit_conf_reg, MszT200DeviceSlaveModuleConf& conf);
-	bool detect_slave(MszT200DeviceSlaveStatus& status);
+	bool detect_slave(MszT200DeviceSlaveStatusData& status);
 	MszRc check_module_configuration(const MszT200DeviceSlaveModuleConf& read_module_conf);
 	MszRc apply_module_configuration(const MszT200DeviceSlaveModuleConf& module_conf);
 	MszRc read_module_status_by_type(const uint32_t unit_no, const uint32_t module_no, const MszT200ModuleType module_type, const uint8_t status_reg_value);
