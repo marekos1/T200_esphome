@@ -323,10 +323,34 @@ MszRc MszT200Device::write_module_state() {
 	return rc;
 }
 
+int
+timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y)
+{
+  /* Perform the carry for the later subtraction by updating y. */
+  if (x->tv_usec < y->tv_usec) {
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+    y->tv_usec -= 1000000 * nsec;
+    y->tv_sec += nsec;
+  }
+  if (x->tv_usec - y->tv_usec > 1000000) {
+    int nsec = (x->tv_usec - y->tv_usec) / 1000000;
+    y->tv_usec += 1000000 * nsec;
+    y->tv_sec -= nsec;
+  }
+
+  /* Compute the time remaining to wait.
+     tv_usec is certainly positive. */
+  result->tv_sec = x->tv_sec - y->tv_sec;
+  result->tv_usec = x->tv_usec - y->tv_usec;
+
+  /* Return 1 if result is negative. */
+  return x->tv_sec < y->tv_sec;
+}
+
 
 void MszT200Device::loop() {
 
-	struct timeval 							current_tv;
+	struct timeval 							current_tv, end_tv, loop_tv;
 	static struct timeval					last_stats_show;
 	MszT200DeviceSlaveStatusData			slave_status_data;
 	MszRc									rc;
@@ -334,7 +358,7 @@ void MszT200Device::loop() {
 	text_sensor::TextSensor*				ts;
 	bool									status_change;
 	static uint32_t 						ctr = 0;
-	uint32_t 								unit_no;
+
 	
     gettimeofday(&current_tv, NULL);
     
@@ -344,6 +368,7 @@ void MszT200Device::loop() {
 		if ((slave_status_data.detected) && (slave_status_data.configured)) {
 			rc = read_module_status();
 			if (rc == MszRc::OK) {
+				delayMicroseconds(1000);
 				write_module_state();
 			} else {
 				ESP_LOGCONFIG(TAG, "read_module_status FAILED!!! detect again");
@@ -386,12 +411,15 @@ void MszT200Device::loop() {
 				stats.print_stats(text, 128);
 				ts->publish_state(text);
 			}
-			
-			for (unit_no = 0; unit_no < 4; unit_no++) {
-	//			ESP_LOGCONFIG(TAG, "Config unit_no %u: %u %u %u %u", unit_no, this->config[unit_no].unit_module_type[0], this->config[unit_no].unit_module_type[1], this->config[unit_no].unit_module_type[2], this->config[unit_no].unit_module_type[3]);
-			}
-
 		}
+	}
+	
+	gettimeofday(&end_tv, NULL);
+	
+	
+	timeval_subtract(&loop_tv, &end_tv, &current_tv);
+	if (loop_tv.tv_sec || loop_tv.tv_usec > 100000) {
+		ESP_LOGCONFIG(TAG, "Loop time %u s %u us", loop_tv.tv_sec, loop_tv.tv_usec);
 	}
 }
 
@@ -522,7 +550,7 @@ uint32_t MszT200Device::send_header(uint8_t *data, const uint32_t reg_addr, cons
 		}
 	} else {
 		header_idx = 0;
-		ESP_LOGCONFIG(TAG, "Recv header data invalid rx 0x%02X 0x%02X but should recv 0xA0 0xA1", recv_header_data[0], recv_header_data[1]);
+		ESP_LOGCONFIG(TAG, "Recv header data invalid rx 0x%02X 0x%02X but should recv 0xA0 0xA1 write_operation: %u", recv_header_data[0], recv_header_data[1], write_operation);
 	}
 	
 	return header_idx;
@@ -584,6 +612,86 @@ uint32_t MszT200Device::recv_registers_value(uint8_t *data, uint32_t *reg_data, 
 	return data_idx;
 }
 
+#if 1
+
+MszRc MszT200Device::write_registers(const uint32_t reg_addr, const uint32_t *reg_data, const uint32_t regs_count) {
+
+	MszRc									rc = MszRc::OK;
+	uint8_t									data[2 + 6 + (4 * msz_t200_register_access_in_single_operation) + 4];
+	uint32_t								data_idx, crc32;
+	
+//	ESP_LOGCONFIG(TAG, "ENTER write_reg reg_addr: %u reg_value: %u regs_count: %u", reg_addr, *reg_data, regs_count);
+	if ((reg_addr < msz_t200_register_number) && (regs_count <= msz_t200_register_access_in_single_operation) && (reg_addr + regs_count) <= msz_t200_register_number) {
+		data_idx = 0;
+		this->enable();
+		delayMicroseconds(100);
+		data_idx += this->send_header(data, reg_addr, true, regs_count);
+		if (data_idx) {
+			data_idx += this->send_registers_value(data + data_idx, reg_data, regs_count);
+			crc32 = msz_t200_crc32_calc(data, data_idx);
+			data_idx += this->send_register_value(data + data_idx, crc32);
+			this->stats.write_ok_ctr++;
+		} else {	
+			ESP_LOGCONFIG(TAG, "Inv header");
+			this->stats.write_err_ctr++;
+			rc = MszRc::Error;
+		}
+		this->disable();
+	} else {
+		rc = MszRc::Inv_arg;
+		this->stats.write_err_ctr++;
+	}
+//	ESP_LOGCONFIG(TAG, "EXIT write_reg rc: %u", rc);
+
+	return rc;
+}
+
+MszRc MszT200Device::read_registers(const uint32_t reg_addr, uint32_t *reg_data, const uint32_t regs_count) {
+
+	MszRc									rc = MszRc::OK;
+	uint8_t									data[2 + 6 + (4 * msz_t200_register_access_in_single_operation) + 4];
+	uint32_t								data_idx, crc32_recv, crc32_calc;
+	
+//	ESP_LOGCONFIG(TAG, "ENTER reg_addr: %u regs_count: %u", reg_addr, regs_count);
+	if ((reg_addr < msz_t200_register_number) && (regs_count <= msz_t200_register_access_in_single_operation) && (reg_addr + regs_count) <= msz_t200_register_number) {
+		data_idx = 0;
+		this->enable();
+		delayMicroseconds(100);
+		data_idx += this->send_header(data + data_idx, reg_addr, false, regs_count);
+		if (data_idx) {
+			data_idx += this->recv_registers_value(data + data_idx, reg_data, regs_count);
+			this->recv_register_value(data + data_idx, crc32_recv);
+			this->disable();
+			crc32_calc = msz_t200_crc32_calc(data, data_idx);
+			if (crc32_recv == crc32_calc) {
+				this->stats.read_ok_ctr++;
+			} else {
+				ESP_LOGCONFIG(TAG, "Invalid CRC recv: 0x%08X expect: 0x%08X", crc32_recv, crc32_calc);
+				rc = MszRc::Inv_crc;
+				this->stats.read_err_ctr++;
+			}
+		} else {
+			ESP_LOGCONFIG(TAG, "Inv header 1");
+			rc = MszRc::Error;
+			this->stats.read_err_ctr++;
+		}
+		this->disable();
+	} else {
+		rc = MszRc::Inv_arg;
+	}
+//	ESP_LOGCONFIG(TAG, "EXIT reg_addr rc: %u data 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X", rc, 
+//													*(data + 8), *(data + 9), *(data + 10), *(data + 11), 
+//													*(data + 12), *(data + 13), *(data + 14), *(data + 15));
+//	ESP_LOGCONFIG(TAG, "EXIT reg_addr rc: %u reg 0x%08X 0x%08X 0x%08X 0x%08X", rc, *(reg_data + 0), *(reg_data + 1), *(reg_data + 2), *(reg_data + 3));
+	if (rc != MszRc::OK) {
+		ESP_LOGCONFIG(TAG, "EXIT reg_addr rc: %u", rc);
+	}
+
+	return rc;
+}
+
+#else
+
 MszRc MszT200Device::write_registers(const uint32_t reg_addr, const uint32_t *reg_data, const uint32_t regs_count) {
 
 	MszRc									rc = MszRc::OK;
@@ -595,7 +703,7 @@ MszRc MszT200Device::write_registers(const uint32_t reg_addr, const uint32_t *re
 		write_try_ctr = 0;
 		do {
 			if (rc != MszRc::OK) {
-				delayMicroseconds(300);
+				delayMicroseconds(1000);
 			}
 			data_idx = 0;
 			this->enable();
@@ -607,6 +715,7 @@ MszRc MszT200Device::write_registers(const uint32_t reg_addr, const uint32_t *re
 				data_idx += this->send_register_value(data + data_idx, crc32);
 				this->stats.write_ok_ctr++;
 			} else {	
+				ESP_LOGCONFIG(TAG, "Inv header");
 				this->stats.write_err_ctr++;
 				rc = MszRc::Error;
 				if (++write_try_ctr >= 3) {
@@ -635,7 +744,7 @@ MszRc MszT200Device::read_registers(const uint32_t reg_addr, uint32_t *reg_data,
 	if ((reg_addr < msz_t200_register_number) && (regs_count <= msz_t200_register_access_in_single_operation) && (reg_addr + regs_count) <= msz_t200_register_number) {
 		do {
 			if (rc != MszRc::OK) {
-				delayMicroseconds(300);
+				delayMicroseconds(1000);
 			}
 			data_idx = 0;
 			this->enable();
@@ -658,14 +767,19 @@ MszRc MszT200Device::read_registers(const uint32_t reg_addr, uint32_t *reg_data,
 					}
 				}
 			} else {
+				ESP_LOGCONFIG(TAG, "Inv header 1");
 				rc = MszRc::Error;
 				this->stats.read_err_ctr++;
 				if (++read_try_ctr >= 3) {
 					this->disable();
 					break;
 				}
+				ESP_LOGCONFIG(TAG, "Inv header 2");
 			}
 			this->disable();
+			if (rc != MszRc::OK) {
+				ESP_LOGCONFIG(TAG, "Inv header 3");
+			}
 		} while (rc != MszRc::OK);
 	} else {
 		rc = MszRc::Inv_arg;
@@ -674,10 +788,14 @@ MszRc MszT200Device::read_registers(const uint32_t reg_addr, uint32_t *reg_data,
 //													*(data + 8), *(data + 9), *(data + 10), *(data + 11), 
 //													*(data + 12), *(data + 13), *(data + 14), *(data + 15));
 //	ESP_LOGCONFIG(TAG, "EXIT reg_addr rc: %u reg 0x%08X 0x%08X 0x%08X 0x%08X", rc, *(reg_data + 0), *(reg_data + 1), *(reg_data + 2), *(reg_data + 3));
-//	ESP_LOGCONFIG(TAG, "EXIT reg_addr rc: %u", rc);
+	if (rc != MszRc::OK) {
+		ESP_LOGCONFIG(TAG, "EXIT reg_addr rc: %u", rc);
+	}
 
 	return rc;
 }
+
+#endif
 
 void MszT200Device::update_reg(uint8_t pin, bool pin_value, uint8_t reg_addr) {
 
