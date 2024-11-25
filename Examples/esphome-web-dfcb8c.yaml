@@ -10,13 +10,11 @@ esp32:
   framework:
     type: arduino
 
-# Enable logging
-logger:
-
 # Enable Home Assistant API
 api:
 
 ota:
+  - platform: esphome
 
 wifi:
   ssid: !secret old_house_ssid
@@ -37,9 +35,22 @@ wifi:
 
 captive_portal:
 
+debug:
+  update_interval: 5s
+
+# Logger must be at least debug (default)
+logger:
+  level: debug
+
 text_sensor:
 - platform: version
   name: "ESPHome Version"
+- platform: debug
+  device:
+    name: "Device Info"
+  reset_reason:
+    name: "Reset Reason"
+
 
 - platform: wifi_info
   ip_address:
@@ -90,6 +101,7 @@ msz_t200_device:
   id: msz_t200_dev_1
   spi_id: "spi0"
   cs_pin: GPIO10
+  irq_pin: GPIO1
   text_sensors: [name: "Status", name: "Statistics", name: "SpiStat"]
   unit_module_1.1: "input8"
   unit_module_1.2: "input8"
@@ -97,6 +109,13 @@ msz_t200_device:
   unit_module_1.4: "dallas4"
 
 sensor:
+  - platform: debug
+    free:
+      name: "Heap Free"
+    block:
+      name: "Heap Max Block"
+    loop_time:
+      name: "Loop Time"
   - platform: msz_t200_sens2
     msz_t200_device: msz_t200_dev_1
     unit_id: 1

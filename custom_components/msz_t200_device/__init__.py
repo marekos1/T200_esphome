@@ -2,7 +2,8 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import spi
 from esphome.components import text_sensor
-from esphome.const import CONF_ID, CONF_TEXT_SENSORS
+from esphome import pins
+from esphome.const import CONF_ID, CONF_IRQ_PIN, CONF_TEXT_SENSORS
 
 
 AUTO_LOAD = ["msz_t200_gpio", "msz_t200_sens2", "msz_t200_dallas"]
@@ -31,6 +32,7 @@ CONFIG_SCHEMA = (
 	cv.Schema(
 		{
 			cv.GenerateID(): cv.declare_id(MszT200Device),
+			cv.Optional(CONF_IRQ_PIN): pins.internal_gpio_input_pin_schema,
 			cv.Optional(CONF_TEXT_SENSORS): cv.ensure_list(
 				text_sensor.text_sensor_schema()
 			),
@@ -47,7 +49,14 @@ CONFIG_SCHEMA = (
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
+    
+    if irq_pin_config := config.get(CONF_IRQ_PIN):
+        irq_pin = await cg.gpio_pin_expression(irq_pin_config)
+        cg.add(var.set_irq_pin(irq_pin))
+    
     await spi.register_spi_device(var, config)
+    
+
 
     cg.add(var.set_conf_mod1(1,1,config[CONF_UNIT_MODULE_1_1]))
     cg.add(var.set_conf_mod1(1,2,config[CONF_UNIT_MODULE_1_2]))

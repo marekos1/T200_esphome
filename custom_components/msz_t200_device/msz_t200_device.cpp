@@ -1,6 +1,6 @@
 #include "esphome/core/log.h"
 #include "msz_t200_device.h"
-
+#include "driver/gpio.h"
 
 namespace esphome {
 namespace msz_t200_device {
@@ -361,6 +361,12 @@ void MszT200Device::loop() {
 
 	
     gettimeofday(&current_tv, NULL);
+    if (this->irq_pin_ != nullptr) {
+		ESP_LOGCONFIG(TAG, "PIN IRQ set ");
+		ESP_LOGCONFIG(TAG, "INT pin state: %u", this->irq_pin_->digital_read());
+	} else {
+		ESP_LOGCONFIG(TAG, "PIN IRQ not set!");
+	}
     
     if (++ctr > 1) {
 		ctr = 0;
@@ -411,17 +417,22 @@ void MszT200Device::loop() {
 				stats.print_stats(text, 128);
 				ts->publish_state(text);
 			}
+
+		//	if (gpio_get_level(GPIO_NUM_1) == 0) {
+		//		ESP_LOGCONFIG(TAG, "INT pin goes down");
+		//	}
 		}
 	}
 	
 	gettimeofday(&end_tv, NULL);
-	
 	
 	timeval_subtract(&loop_tv, &end_tv, &current_tv);
 	if (loop_tv.tv_sec || loop_tv.tv_usec > 100000) {
 		ESP_LOGCONFIG(TAG, "Loop time %u s %u us", loop_tv.tv_sec, loop_tv.tv_usec);
 	}
 }
+
+
 
 void MszT200Device::setup() {
     
@@ -434,6 +445,26 @@ void MszT200Device::setup() {
     this->startup_tv.tv_sec += 10;
 	
 	ESP_LOGCONFIG(TAG, "Config unit_no 0: %u %u %u %u", this->config[0].unit_module_type[0], this->config[0].unit_module_type[1], this->config[0].unit_module_type[2], this->config[0].unit_module_type[3]);
+	
+	
+#if 0
+	gpio_config_t conf{};
+	
+	conf.pin_bit_mask = 1ULL << static_cast<uint32_t>(1);
+	conf.mode = GPIO_MODE_INPUT;
+	conf.pull_up_en = GPIO_PULLUP_ENABLE;
+	conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+	conf.intr_type = GPIO_INTR_DISABLE;
+	
+	gpio_config(&conf);
+#else
+
+	if (this->irq_pin_ != nullptr) {
+		this->irq_pin_->setup();
+	}
+	
+#endif
+	
 }
 
 void MszT200Device::dump_config() {
@@ -442,6 +473,7 @@ void MszT200Device::dump_config() {
  //   ESP_LOGCONFIG(TAG, "msz t200 component get_object_id: %s", this->get_object_id().c_str());
  //   ESP_LOGCONFIG(TAG, "msz t200 component get_name: %s", this->get_name().c_str());   
     LOG_PIN("  CS Pin:", this->cs_);
+    LOG_PIN("  IRQ Pin: ", irq_pin_);
 }
 
 void MszT200Device::set_conf_mod1(uint8_t unit, uint8_t module, MszT200ModuleType mode_type) {

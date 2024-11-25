@@ -211,6 +211,7 @@ class MszT200Device : public MszT200Base,
     
     void update_reg(uint8_t pin, bool pin_value, uint8_t reg_a) override;
     void set_conf_mod1(uint8_t unit, uint8_t module, MszT200ModuleType mode_type);
+    void set_irq_pin(InternalGPIOPin *irq_pin) { irq_pin_ = irq_pin; }
 
 	MszT200DeviceSlaveModuleConf config[4] = {MszT200ModuleType::NoneEmpty, MszT200ModuleType::NoneEmpty, MszT200ModuleType::NoneEmpty, MszT200ModuleType::NoneEmpty};
     
@@ -250,6 +251,9 @@ class MszT200Device : public MszT200Base,
 	
 	
 	void test1(bool& read, const uint32_t reg_addr, uint32_t *reg_test_value, const uint32_t reg_test_count);
+ 
+ protected:
+   InternalGPIOPin *irq_pin_{nullptr};
 };
 
 }  // namespace msz_t200_device
