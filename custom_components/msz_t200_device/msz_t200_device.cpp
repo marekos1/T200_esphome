@@ -13,6 +13,94 @@ static const uint8_t msz_t200_header_second = 0xD3;
 static const uint32_t msz_t200_register_number = 0x01FFFFFF;
 static const uint32_t msz_t200_register_access_in_single_operation = 128;
 
+
+
+
+
+
+
+
+
+
+
+
+
+bool timeval_compare(const struct timeval& lhs, const struct timeval& rhs) {
+	
+	bool ret_val = false;
+	
+    if (lhs.tv_sec == rhs.tv_sec) {
+        ret_val = (lhs.tv_usec > rhs.tv_usec);
+    } else {
+        ret_val = (lhs.tv_sec > rhs.tv_sec);
+	}
+      
+	return ret_val;
+}
+
+void timeval_add_us(struct timeval& tv, const uint32_t us) {
+	
+	uint32_t								add_sec;
+	
+	tv.tv_usec += us;
+	if (tv.tv_usec >= 1000000) {
+		add_sec = tv.tv_usec / 1000000;
+		tv.tv_sec += add_sec;
+		tv.tv_usec -= (add_sec * 1000000);
+	}
+}
+
+void timeval_add(struct timeval& tv, const struct timeval& tv_to_add) {
+	
+	timeval_add_us(tv, tv_to_add.tv_usec);
+	tv.tv_sec += tv_to_add.tv_sec;
+}
+
+void timeval_get_avg(struct timeval& avg_tv, const struct timeval& tv_cum, const uint32_t tv_cum_ctr) {
+	
+	uint64_t 								usec;
+	
+	usec = tv_cum.tv_sec * 1000000;
+	usec += tv_cum.tv_usec;
+	usec = usec / tv_cum_ctr;
+	avg_tv.tv_sec = usec / 1000000;
+	avg_tv.tv_usec = usec % 1000000;
+}
+
+int timeval_subtract(struct timeval *result, struct timeval *x, struct timeval *y) {
+	
+	/* Perform the carry for the later subtraction by updating y. */
+	if (x->tv_usec < y->tv_usec) {
+		int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+		y->tv_usec -= 1000000 * nsec;
+		y->tv_sec += nsec;
+	}
+	if (x->tv_usec - y->tv_usec > 1000000) {
+		int nsec = (x->tv_usec - y->tv_usec) / 1000000;
+		y->tv_usec += 1000000 * nsec;
+		y->tv_sec -= nsec;
+	}
+
+	/* Compute the time remaining to wait. tv_usec is certainly positive. */
+	result->tv_sec = x->tv_sec - y->tv_sec;
+	result->tv_usec = x->tv_usec - y->tv_usec;
+
+	/* Return 1 if result is negative. */
+	return x->tv_sec < y->tv_sec;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 float MszT200Base::get_setup_priority() const { 
 	
 	return setup_priority::IO;
@@ -61,31 +149,6 @@ MszRc MszT200Base::gpio_write(const MszT200InstanceIdent& inst_ident, const bool
 	return rc;
 }
 
-bool timeval_compare(const struct timeval& lhs, const struct timeval& rhs) {
-	
-	bool ret_val = false;
-	
-    if (lhs.tv_sec == rhs.tv_sec) {
-        ret_val = (lhs.tv_usec > rhs.tv_usec);
-    } else {
-        ret_val = (lhs.tv_sec > rhs.tv_sec);
-	}
-//    ESP_LOGCONFIG(TAG, "timeval_compare lhs: %u.%u rhs: %u.%u ret_val: %u", lhs.tv_sec, lhs.tv_usec, rhs.tv_sec, rhs.tv_usec, ret_val);
-      
-	return ret_val;
-}
-
-void timeval_add_us(struct timeval& tv, const uint32_t us) {
-	
-	uint32_t								add_sec;
-	
-	tv.tv_usec += us;
-	if (tv.tv_usec >= 1000000) {
-		add_sec = tv.tv_usec / 1000000;
-		tv.tv_sec += add_sec;
-		tv.tv_usec -= (add_sec * 1000000);
-	}
-}
 
 void MszT200Device::test1(bool& read, const uint32_t reg_addr, uint32_t *reg_test_value, const uint32_t reg_test_count)  {
 	
@@ -207,7 +270,7 @@ MszRc MszT200Device::check_module_configuration(const uint32_t unit_no, const Ms
 	MszRc									rc = MszRc::OK;
 	uint32_t								module_no;
 		
-//	ESP_LOGCONFIG(TAG, "Config unit_no %u: %u %u %u %u", unit_no, this->config[unit_no].unit_module_type[0], this->config[unit_no].unit_module_type[1], this->config[unit_no].unit_module_type[2], this->config[unit_no].unit_module_type[3]);
+	ESP_LOGCONFIG(TAG, "Config unit_no %u: %u %u %u %u", unit_no, this->config[unit_no].unit_module_type[0], this->config[unit_no].unit_module_type[1], this->config[unit_no].unit_module_type[2], this->config[unit_no].unit_module_type[3]);
 	for (module_no = 0; module_no < 4; module_no++) {
 //		ESP_LOGCONFIG(TAG, "Config unit_no %u: module_no: %u %u", unit_no, module_no, this->config[unit_no].unit_module_type[module_no]);
 		if (read_module_conf.unit_module_type[module_no] != this->config[unit_no].unit_module_type[module_no]) {
@@ -323,30 +386,7 @@ MszRc MszT200Device::write_module_state() {
 	return rc;
 }
 
-int
-timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y)
-{
-  /* Perform the carry for the later subtraction by updating y. */
-  if (x->tv_usec < y->tv_usec) {
-    int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
-    y->tv_usec -= 1000000 * nsec;
-    y->tv_sec += nsec;
-  }
-  if (x->tv_usec - y->tv_usec > 1000000) {
-    int nsec = (x->tv_usec - y->tv_usec) / 1000000;
-    y->tv_usec += 1000000 * nsec;
-    y->tv_sec -= nsec;
-  }
-
-  /* Compute the time remaining to wait.
-     tv_usec is certainly positive. */
-  result->tv_sec = x->tv_sec - y->tv_sec;
-  result->tv_usec = x->tv_usec - y->tv_usec;
-
-  /* Return 1 if result is negative. */
-  return x->tv_sec < y->tv_sec;
-}
-
+#if 0
 
 void MszT200Device::loop() {
 
@@ -432,7 +472,133 @@ void MszT200Device::loop() {
 	}
 }
 
+#else
 
+
+
+MszRc MszT200Device::init(/*MszT200DeviceSlaveStatusData& slave_status_data*/) {
+	
+	MszRc									rc = MszRc::OK;
+	MszT200DeviceSlaveStatusData			slave_status_data;
+	bool									detect_state;
+	bool									status_change = false;
+	text_sensor::TextSensor*				ts;
+	char									text[128];
+		
+	this->slave_status.get(slave_status_data);
+//	ESP_LOGCONFIG(TAG, "Enter detect: %u configure: %u INIT: %u", slave_status_data.detected, slave_status_data.configured, this->slave_status.get_init_done());
+	if ((this->slave_status.get_init_done() == false) || (this->slave_status.get_poll_timeout())) {
+		ESP_LOGCONFIG(TAG, "Enter detect: %u configure: %u INIT: %u", slave_status_data.detected, slave_status_data.configured, this->slave_status.get_init_done());
+		detect_state = detect_slave(slave_status_data);
+		rc = this->check_module_configuration(0, slave_status_data.module_conf);
+		if (rc == MszRc::OK) {
+			slave_status_data.set_configured(true);
+		} else {
+			ESP_LOGCONFIG(TAG, "Slave not configured properly");
+			slave_status_data.set_configured(false);
+			delayMicroseconds(10000);
+			this->apply_module_configuration(0, this->config[0]);
+		}
+		slave_status_data.set_detected(detect_state);
+		ESP_LOGCONFIG(TAG, "Enter detect: %u configure: %u", slave_status_data.detected, slave_status_data.configured);
+		status_change = this->slave_status.set(slave_status_data);
+		
+		if (status_change) {
+			ts = get_text_sensor_by_name("Status");
+			if (ts) {
+				this->slave_status.print_status(text, 128);
+				ts->publish_state(text);
+			}
+		}
+	}
+	
+	return rc;
+}
+
+static struct timeval 							loop_tv, loop_tv_min = {.tv_sec = 9999, .tv_usec = 999999}, loop_tv_max, loop_tv_cum, loop_tv_avg;
+static uint32_t 								loop_cum_ctr, loop_rate_last_sec, loop_rate_ctr, loop_rate;
+
+
+void MszT200Device::loop() {
+
+	struct timeval 							current_tv, end_tv;
+	static struct timeval					last_stats_show;
+	MszT200DeviceSlaveStatusData			slave_status_data;
+	MszRc									rc;
+	text_sensor::TextSensor					*ts_spi_stat, *ts_stat;
+	char									text[128];	
+	static uint32_t 						ctr = 0;
+	static uint32_t 						poll_ctr = 0;
+
+    gettimeofday(&current_tv, NULL);
+    
+    if (current_tv.tv_sec != loop_rate_last_sec) {
+		loop_rate_last_sec = current_tv.tv_sec;
+		loop_rate = loop_rate_ctr;
+		loop_rate_ctr = 1;
+	} else {
+		loop_rate_ctr++;
+	}
+    
+	this->init();
+	if (this->slave_status.get_init_done()) {
+		rc = MszRc::OK;
+		if (this->irq_pin_->digital_read() == false) {
+			rc = read_module_status();
+			if (rc != MszRc::OK) {
+				ESP_LOGCONFIG(TAG, "read_module_status FAILED!!! detect again");
+				this->slave_status.clear_init_done();
+			}
+			poll_ctr = 0;
+		}
+		if (rc == MszRc::OK) {
+			write_module_state();
+		}
+	}
+    
+    if (++ctr > 300) {
+		ctr = 0;
+
+		if (timeval_compare(current_tv, last_stats_show)) {
+			last_stats_show = current_tv;
+			last_stats_show.tv_sec += 3;
+			
+			ts_spi_stat = get_text_sensor_by_name("SpiStat");
+			if (ts_spi_stat) {
+				stats.print_stats(text, 128);
+				ts_spi_stat->publish_state(text);
+			}
+#if 1
+			ts_stat = get_text_sensor_by_name("Statistics");
+			if (ts_stat) {
+				snprintf(text, 128, "Loop rate: %u curr: %u.%06u min: %u.%06u max: %u.%06u avg: %u.%06u", 
+																				loop_rate, loop_tv.tv_sec, loop_tv.tv_usec, 
+																				loop_tv_min.tv_sec, loop_tv_min.tv_usec, 
+																				loop_tv_max.tv_sec, loop_tv_max.tv_usec,
+																				loop_tv_avg.tv_sec, loop_tv_avg.tv_usec);
+				ts_stat->publish_state(text);
+			} else {
+				ESP_LOGCONFIG(TAG, "Text Sensor Statistics NOT FOUND!");
+			}
+#endif
+		}
+	}
+	
+	gettimeofday(&end_tv, NULL);
+	timeval_subtract(&loop_tv, &end_tv, &current_tv);
+	
+	if (timeval_compare(loop_tv_min, loop_tv)) {
+		loop_tv_min = loop_tv;
+	}
+	if (timeval_compare(loop_tv, loop_tv_max)) {
+		loop_tv_max = loop_tv;
+	}
+	timeval_add(loop_tv_cum, loop_tv);
+	loop_cum_ctr++;
+	timeval_get_avg(loop_tv_avg, loop_tv_cum, loop_cum_ctr);
+}
+
+#endif
 
 void MszT200Device::setup() {
     

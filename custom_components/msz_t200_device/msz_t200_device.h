@@ -85,12 +85,31 @@ class MszT200DeviceSlaveModuleConf {
 };
 
 class MszT200DeviceSlaveStatusData {
-	public:
-	
-	bool							detected;
+
+ public:
+ 
+ 	bool							detected;
 	bool							configured;
+	bool							init_done;
 	uint32_t						hw_rev;
 	uint32_t						sw_ver;
+		
+	void set_detected(const bool detect_state) {
+		
+		if (detect_state != this->detected) {
+			this->detected = detect_state;
+			init_done = (this->detected && this->configured);
+		}
+	}
+	
+	void set_configured(const bool configure_state) {
+		
+		if (configure_state != this->configured) {
+			this->configured = configure_state;
+			init_done = (this->detected && this->configured);
+		}
+	}
+	
 	MszT200DeviceSlaveModuleConf	module_conf;
 	
 	void clear() {
@@ -98,6 +117,7 @@ class MszT200DeviceSlaveStatusData {
 		configured = false;
 		hw_rev = 0;
 		sw_ver = 0;
+		init_done = false;
 		module_conf.clear();
 	}
 	
@@ -116,10 +136,11 @@ class MszT200DeviceSlaveStatusData {
 
 class MszT200DeviceSlaveStatus {
 	public:
-	
+
 		
 	
 	void clear() {
+		poll_ctrl = 0;
 		data_m.clear();
 	}
 	
@@ -138,6 +159,29 @@ class MszT200DeviceSlaveStatus {
 		
 		return diff;
 	}
+	
+	bool get_poll_timeout() {
+		
+		bool 								timeout = false;
+		
+		if (++poll_ctrl > 300) {
+			poll_ctrl = 0;
+			timeout = true;
+		}
+		
+		return timeout;
+	}
+	
+		
+	bool get_init_done() {
+		
+		return data_m.init_done;
+	}
+	
+	void clear_init_done() {
+		
+		data_m.clear();
+	}
 		
 	const char* print_status(char *txt, uint32_t text_length) {
 		
@@ -155,6 +199,7 @@ class MszT200DeviceSlaveStatus {
 	private:
 	
 		MszT200DeviceSlaveStatusData	data_m;
+		uint32_t						poll_ctrl;
 };
 
 
@@ -233,7 +278,7 @@ class MszT200Device : public MszT200Base,
 	uint32_t recv_register_value(uint8_t *data, uint32_t& reg_value);
 	uint32_t recv_registers_value(uint8_t *data, uint32_t *reg_data, const uint32_t regs_count);
 	
-
+	MszRc init();
 	void get_unit_conf(const uint32_t unit_conf_reg, MszT200DeviceSlaveModuleConf& conf);
 	bool detect_slave(MszT200DeviceSlaveStatusData& status);
 	MszRc check_module_configuration(const uint32_t unit_no, const MszT200DeviceSlaveModuleConf& read_module_conf);
