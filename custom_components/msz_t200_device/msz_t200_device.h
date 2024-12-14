@@ -37,16 +37,18 @@ class MszT200InstanceIdent {
 	uint32_t channel_id;
 };
 
-class MszT200DeviceStats {
+class MszT200DeviceSpiStats {
 	
-	public:
+ public:
 	uint32_t 						write_ok_ctr;
 	uint32_t						write_err_ctr;
 	uint32_t 						read_ok_ctr;
 	uint32_t						read_err_ctr;
 	
-	MszT200DeviceStats() : write_ok_ctr{0}, write_err_ctr{0}, read_ok_ctr{0}, read_err_ctr{0} {
-		
+	MszT200DeviceSpiStats() : write_ok_ctr{0}, write_err_ctr{0}, read_ok_ctr{0}, read_err_ctr{0}, publish_ctr{0} {
+#if MSZ_T200_SW_OPTION_TEXT_SENSOR 		
+		txts = NULL;
+#endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */
 	}
 	
 	const char* print_stats(char *txt, uint32_t text_length) {
@@ -55,11 +57,71 @@ class MszT200DeviceStats {
 		
 		return txt;
 	}
+	
+	void step(const struct timeval& current_tv);
+	
+#if MSZ_T200_SW_OPTION_TEXT_SENSOR   
+	void set_txt_sensor(text_sensor::TextSensor *txt_sensor) {
+		
+		txts = txt_sensor;
+	} 
+#endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */	
+	
+ private:
+#if MSZ_T200_SW_OPTION_TEXT_SENSOR 		
+ 	text_sensor::TextSensor					*txts;
+#endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */
+ 	uint32_t								publish_ctr;
 };
 
-class MszT200DeviceSlaveModuleConf {
-	public:
+class MszT200DeviceLoopStats {
 	
+ public:
+ 
+	MszT200DeviceLoopStats() : publish_ctr{0}, loop_tv_min{.tv_sec = 9999, .tv_usec = 999999} {
+#if MSZ_T200_SW_OPTION_TEXT_SENSOR 		
+		txts = NULL;
+#endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */
+	}
+
+	const char* print_stats(char *txt, uint32_t text_length) {
+		
+		snprintf(txt, text_length, "Loop rate: %u curr: %u.%06u min: %u.%06u max: %u.%06u avg: %u.%06u", 
+													loop_rate, loop_tv.tv_sec, loop_tv.tv_usec, 
+													loop_tv_min.tv_sec, loop_tv_min.tv_usec, 
+													loop_tv_max.tv_sec, loop_tv_max.tv_usec,
+													loop_tv_avg.tv_sec, loop_tv_avg.tv_usec);
+
+		return txt;
+	}
+	
+	void clear() {
+		publish_ctr = 0;
+		loop_tv_min = {.tv_sec = 9999, .tv_usec = 999999};
+	}
+	
+	void step(const struct timeval& current_tv);
+	
+	
+#if MSZ_T200_SW_OPTION_TEXT_SENSOR   
+	void set_txt_sensor(text_sensor::TextSensor *txt_sensor) {
+		
+		txts = txt_sensor;
+	} 
+#endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */	
+		
+ private:
+	uint32_t								publish_ctr;
+	struct timeval 							loop_tv, loop_tv_min, loop_tv_max, loop_tv_cum, loop_tv_avg;
+	uint32_t 								loop_cum_ctr, loop_rate_last_sec, loop_rate_ctr, loop_rate;
+#if MSZ_T200_SW_OPTION_TEXT_SENSOR 		
+ 	text_sensor::TextSensor					*txts;
+#endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */
+};
+
+
+class MszT200DeviceSlaveModuleConf {
+ public:
 	MszT200ModuleType				unit_module_type[4];
 	
 	void clear() {
@@ -85,9 +147,7 @@ class MszT200DeviceSlaveModuleConf {
 };
 
 class MszT200DeviceSlaveStatusData {
-
  public:
- 
  	bool							detected;
 	bool							configured;
 	bool							init_done;
@@ -135,10 +195,19 @@ class MszT200DeviceSlaveStatusData {
 };
 
 class MszT200DeviceSlaveStatus {
-	public:
-
-		
 	
+ public:
+ 
+#if MSZ_T200_SW_OPTION_TEXT_SENSOR  
+	text_sensor::TextSensor					*txts;
+#endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */
+
+	MszT200DeviceSlaveStatus() {
+#if MSZ_T200_SW_OPTION_TEXT_SENSOR 		
+		txts = NULL;
+#endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */
+	}
+ 
 	void clear() {
 		poll_ctrl = 0;
 		data_m.clear();
@@ -148,6 +217,7 @@ class MszT200DeviceSlaveStatus {
 		
 		data = data_m;
 	}
+	
 	bool set(const MszT200DeviceSlaveStatusData& data) {
 		
 		bool								diff = false;
@@ -172,7 +242,6 @@ class MszT200DeviceSlaveStatus {
 		return timeout;
 	}
 	
-		
 	bool get_init_done() {
 		
 		return data_m.init_done;
@@ -196,10 +265,16 @@ class MszT200DeviceSlaveStatus {
 		return txt;
 	}
 	
-	private:
+#if MSZ_T200_SW_OPTION_TEXT_SENSOR   
+	void set_txt_sensor(text_sensor::TextSensor *txt_sensor) {
+		
+		txts = txt_sensor;
+	} 
+#endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */	
 	
-		MszT200DeviceSlaveStatusData	data_m;
-		uint32_t						poll_ctrl;
+ private:
+	MszT200DeviceSlaveStatusData	data_m;
+	uint32_t						poll_ctrl;
 };
 
 
@@ -251,7 +326,6 @@ class MszT200Device : public MszT200Base,
     void dump_config() override;
        
 	MszRc write_registers(const uint32_t reg_addr, const uint32_t *reg_data, const uint32_t regs_count);
-	
 	MszRc read_registers(const uint32_t reg_addr, uint32_t *reg_data, const uint32_t regs_count);
     
     void update_reg(uint8_t pin, bool pin_value, uint8_t reg_a) override;
@@ -259,15 +333,15 @@ class MszT200Device : public MszT200Base,
     void set_irq_pin(InternalGPIOPin *irq_pin) { irq_pin_ = irq_pin; }
 
 	MszT200DeviceSlaveModuleConf config[4] = {MszT200ModuleType::NoneEmpty, MszT200ModuleType::NoneEmpty, MszT200ModuleType::NoneEmpty, MszT200ModuleType::NoneEmpty};
-    
-#if MSZ_T200_SW_OPTION_TEXT_SENSOR   
-    text_sensor::TextSensor* get_new_text_sensor(int i);    
-#endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */	
+    text_sensor::TextSensor* get_new_text_sensor_by_id(const int i);    
 
  private:
-	MszT200DeviceStats						stats;
-	struct timeval 							startup_tv;
+	MszT200DeviceSpiStats					spi_stats;
+	MszT200DeviceLoopStats					loop_stats;
 	MszT200DeviceSlaveStatus				slave_status;
+	
+	struct timeval 							startup_tv;
+
  
 	uint32_t set_32bdata_value(uint8_t *data, const uint32_t value);
 	uint32_t get_32bdata_value(const uint8_t *data, uint32_t& value);
@@ -291,12 +365,10 @@ class MszT200Device : public MszT200Base,
     text_sensor::TextSensor* text_sensors_ptr[8];
     
     text_sensor::TextSensor* get_text_sensor_by_name(const char *name);
+#else /* MSZ_T200_SW_OPTION_TEXT_SENSOR */
+	text_sensor::TextSensor* text_sensors_x;
 #endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */	
-	
-	
-	
-	void test1(bool& read, const uint32_t reg_addr, uint32_t *reg_test_value, const uint32_t reg_test_count);
- 
+	 
  protected:
    InternalGPIOPin *irq_pin_{nullptr};
 };

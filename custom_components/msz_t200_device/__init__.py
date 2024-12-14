@@ -64,5 +64,5 @@ async def to_code(config):
     cg.add(var.set_conf_mod1(1,4,config[CONF_UNIT_MODULE_1_4]))
     
     for i, conf in enumerate(config[CONF_TEXT_SENSORS]):
-        text = cg.Pvariable(conf[CONF_ID], var.get_new_text_sensor(i))
+        text = cg.Pvariable(conf[CONF_ID], var.get_new_text_sensor_by_id(i))
         await text_sensor.register_text_sensor(text, conf)
