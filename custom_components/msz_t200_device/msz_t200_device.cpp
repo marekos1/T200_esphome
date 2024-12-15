@@ -332,7 +332,7 @@ MszRc MszT200Device::read_module_status() {
 MszRc MszT200Device::write_module_state(const bool force) {
 	
 	MszRc									rc = MszRc::OK;
-	uint32_t								unit_no, module_no, reg_value, inst_idx;
+	uint32_t								unit_no, module_no, reg_value, inst_idx, slave_cpu_firmware_version;
 		
 	for (unit_no = 0; unit_no < 4; unit_no++) {
 		for (module_no = 0; module_no < 4; module_no++) {
@@ -345,9 +345,16 @@ MszRc MszT200Device::write_module_state(const bool force) {
 						if (gpio_output_set_state[inst_idx]) {
 							reg_value |= 1 << inst_idx;
 						}
-					} 
-//					ESP_LOGCONFIG(TAG, "Write register 14 to reg_value: %u", reg_value);
-					rc = write_registers(14, &reg_value, 1);
+					}
+					slave_cpu_firmware_version = this->slave_status.get_firmware_version();
+					if (slave_cpu_firmware_version == 1) {
+						//ESP_LOGCONFIG(TAG, "Write register 14 to reg_value: %u", reg_value);
+						rc = write_registers(14, &reg_value, 1);
+					} else if (slave_cpu_firmware_version == 2) {
+						rc = write_registers(2000, &reg_value, 1);
+					} else {
+						rc = MszRc::Unsupported_fw_ver;
+					}
 					if (rc == MszRc::OK) {
 						gpio_output_change_state[unit_no] = false;
 					}

@@ -21,6 +21,8 @@ enum class MszRc {
 	Inv_arg = -2,
 	Inv_crc = -3,
 	Inv_conf = -4,
+	
+	Unsupported_fw_ver = -100,
 };
 	
 enum MszT200ModuleType : uint8_t { 
@@ -250,6 +252,11 @@ class MszT200DeviceSlaveStatus {
 	void clear_init_done() {
 		
 		data_m.clear();
+	}
+	
+	uint32_t get_firmware_version() {
+		
+		return data_m.sw_ver;
 	}
 		
 	const char* print_status(char *txt, uint32_t text_length) {
