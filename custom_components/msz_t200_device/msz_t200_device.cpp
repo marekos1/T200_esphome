@@ -375,34 +375,48 @@ MszRc MszT200Device::init() {
 	bool									status_change = false;
 	text_sensor::TextSensor*				ts;
 	char									text[128];
-		
-	this->slave_status.get(slave_status_data);
-//	ESP_LOGCONFIG(TAG, "Enter detect: %u configure: %u INIT: %u", slave_status_data.detected, slave_status_data.configured, this->slave_status.get_init_done());
-	if ((this->slave_status.get_init_done() == false) || (this->slave_status.get_poll_timeout())) {
-		ESP_LOGCONFIG(TAG, "Enter detect: %u configure: %u INIT: %u", slave_status_data.detected, slave_status_data.configured, this->slave_status.get_init_done());
-		detect_state = detect_slave(slave_status_data);
-		rc = this->check_module_configuration(0, slave_status_data.module_conf);
-		if (rc == MszRc::OK) {
-			slave_status_data.set_configured(true);
-		} else {
-			ESP_LOGCONFIG(TAG, "Slave not configured properly");
-			slave_status_data.set_configured(false);
-			delayMicroseconds(10000);
-			this->apply_module_configuration(0, this->config[0]);
-		}
-		slave_status_data.set_detected(detect_state);
-		status_change = this->slave_status.set(slave_status_data);
-		if (status_change) {
-			ESP_LOGCONFIG(TAG, "Enter detect: %u configure: %u", slave_status_data.detected, slave_status_data.configured);
-			if (slave_status_data.detected && slave_status_data.configured) {
-				write_module_state(true);
+	
+	if (this->slave_status.next_detect_ctr) {
+		this->slave_status.next_detect_ctr--;
+	}
+	if (this->slave_status.next_detect_ctr == 0) {
+		this->slave_status.get(slave_status_data);
+//		ESP_LOGCONFIG(TAG, "Enter detect: %u configure: %u INIT: %u", slave_status_data.detected, slave_status_data.configured, this->slave_status.get_init_done());
+		if ((this->slave_status.get_init_done() == false) || (this->slave_status.get_poll_timeout())) {
+			ESP_LOGCONFIG(TAG, "Enter detect: %u configure: %u INIT: %u", slave_status_data.detected, slave_status_data.configured, this->slave_status.get_init_done());
+			detect_state = detect_slave(slave_status_data);
+			rc = this->check_module_configuration(0, slave_status_data.module_conf);
+			if (rc == MszRc::OK) {
+				slave_status_data.set_configured(true);
+			} else {
+				ESP_LOGCONFIG(TAG, "Slave not configured properly");
+				slave_status_data.set_configured(false);
+				delayMicroseconds(10000);
+				this->apply_module_configuration(0, this->config[0]);
 			}
+			slave_status_data.set_detected(detect_state);
+			status_change = this->slave_status.set(slave_status_data);
+			if (status_change) {
+				ESP_LOGCONFIG(TAG, "Enter detect: %u configure: %u", slave_status_data.detected, slave_status_data.configured);
+				if (slave_status_data.detected && slave_status_data.configured) {
+					write_module_state(true);
+				}
 #if MSZ_T200_SW_OPTION_TEXT_SENSOR 
-			if (this->slave_status.txts) {
-				this->slave_status.print_status(text, 128);
-				this->slave_status.txts->publish_state(text);
-			}
+				if (this->slave_status.txts) {
+					this->slave_status.print_status(text, 128);
+					this->slave_status.txts->publish_state(text);
+				}
 #endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */
+			}
+			if (detect_state == false) {
+				this->slave_status.err_detect_ctr++;
+				if (this->slave_status.err_detect_ctr > 3) {
+					this->slave_status.next_detect_ctr = 120;
+				}
+			} else {
+				this->slave_status.err_detect_ctr = 0;
+				this->slave_status.next_detect_ctr = 0;
+			}
 		}
 	}
 	

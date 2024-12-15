@@ -203,8 +203,10 @@ class MszT200DeviceSlaveStatus {
 #if MSZ_T200_SW_OPTION_TEXT_SENSOR  
 	text_sensor::TextSensor					*txts;
 #endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */
-
-	MszT200DeviceSlaveStatus() {
+	uint32_t								err_detect_ctr;
+	uint32_t								next_detect_ctr;
+	
+	MszT200DeviceSlaveStatus() : err_detect_ctr{0}, next_detect_ctr{0} {
 #if MSZ_T200_SW_OPTION_TEXT_SENSOR 		
 		txts = NULL;
 #endif /* MSZ_T200_SW_OPTION_TEXT_SENSOR */
@@ -212,6 +214,8 @@ class MszT200DeviceSlaveStatus {
  
 	void clear() {
 		poll_ctrl = 0;
+		err_detect_ctr = 0;
+		next_detect_ctr = 0;
 		data_m.clear();
 	}
 	
