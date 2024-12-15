@@ -359,7 +359,7 @@ class MszT200Device : public MszT200Base,
 	MszRc apply_module_configuration(const uint32_t unit_no, const MszT200DeviceSlaveModuleConf& module_conf);
 	MszRc read_module_status_by_type(const uint32_t unit_no, const uint32_t module_no, const MszT200ModuleType module_type, const uint8_t status_reg_value);
 	MszRc read_module_status();
-	MszRc write_module_state();
+	MszRc write_module_state(const bool force);
     
 #if MSZ_T200_SW_OPTION_TEXT_SENSOR   
     text_sensor::TextSensor* text_sensors_ptr[8];

@@ -329,7 +329,7 @@ MszRc MszT200Device::read_module_status() {
 	return rc;
 }
 
-MszRc MszT200Device::write_module_state() {
+MszRc MszT200Device::write_module_state(const bool force) {
 	
 	MszRc									rc = MszRc::OK;
 	uint32_t								unit_no, module_no, reg_value, inst_idx;
@@ -338,7 +338,7 @@ MszRc MszT200Device::write_module_state() {
 		for (module_no = 0; module_no < 4; module_no++) {
 			if (this->config[unit_no].unit_module_type[module_no] == MszT200ModuleType::Output8) {
 //				ESP_LOGCONFIG(TAG, "Unit %u module %u is Output change state: %u", unit_no, module_no, gpio_output_change_state[unit_no]);
-				if (gpio_output_change_state[unit_no]) {
+				if (gpio_output_change_state[unit_no] || force) {
 //					ESP_LOGCONFIG(TAG, "Change state on unit_no: %u", unit_no);
 					reg_value = 0;
 					for (inst_idx = 0; inst_idx < 32; inst_idx++) {
@@ -387,6 +387,9 @@ MszRc MszT200Device::init() {
 		status_change = this->slave_status.set(slave_status_data);
 		if (status_change) {
 			ESP_LOGCONFIG(TAG, "Enter detect: %u configure: %u", slave_status_data.detected, slave_status_data.configured);
+			if (slave_status_data.detected && slave_status_data.configured) {
+				write_module_state(true);
+			}
 #if MSZ_T200_SW_OPTION_TEXT_SENSOR 
 			if (this->slave_status.txts) {
 				this->slave_status.print_status(text, 128);
@@ -416,7 +419,7 @@ void MszT200Device::loop() {
 			}
 		}
 		if (rc == MszRc::OK) {
-			write_module_state();
+			write_module_state(false);
 		}
 	}
 	
