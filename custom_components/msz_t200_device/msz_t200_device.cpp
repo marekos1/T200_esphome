@@ -212,7 +212,7 @@ bool MszT200Device::detect_slave(MszT200DeviceSlaveStatusData& status) {
 	MszRc									rc;
 	uint32_t								reg_read_value[14], reg_no;
 	
-	rc = read_registers(0x00000000, reg_read_value, 8);
+	rc = read_registers(0x00000000, reg_read_value, 14);
 	if (rc == MszRc::OK) {
 		if (reg_read_value[0] & (1 << 0)) {
 			if (reg_read_value[1] == 0x00000082) {
@@ -220,10 +220,9 @@ bool MszT200Device::detect_slave(MszT200DeviceSlaveStatusData& status) {
 			 	status.clear();
 			 	status.hw_rev = reg_read_value[2];
 			 	status.sw_ver = reg_read_value[3];
-			 	ESP_LOGCONFIG(TAG, "Found slave HW rev: %u SW ver: %u", status.hw_rev, status.sw_ver);
 			 	get_unit_conf(reg_read_value[6], status.module_conf);				
-			 	ESP_LOGCONFIG(TAG, "Module 0 config: %u %u %u %u", status.module_conf.unit_module_type[0], status.module_conf.unit_module_type[1], status.module_conf.unit_module_type[2], status.module_conf.unit_module_type[3]);
-			 	
+//			 	ESP_LOGCONFIG(TAG, "Module 0 config: %u %u %u %u", status.module_conf.unit_module_type[0], status.module_conf.unit_module_type[1], status.module_conf.unit_module_type[2], status.module_conf.unit_module_type[3]);
+//			 	ESP_LOGCONFIG(TAG, "Module 0 config: 0x%08X 0x%08X 0x%08X 0x%08X", reg_read_value[10], reg_read_value[11], reg_read_value[12], reg_read_value[13]);
 			} else {
 				ESP_LOGCONFIG(TAG, "Slave unknown ID: 0x%08X", reg_read_value[1]);
 			}
@@ -233,7 +232,7 @@ bool MszT200Device::detect_slave(MszT200DeviceSlaveStatusData& status) {
 	} else {
 		ESP_LOGCONFIG(TAG, "Read error rc: %d 0x%08X 0x%08X 0x%08X 0x%08X   0x%08X 0x%08X 0x%08X 0x%08X", rc,
 											 reg_read_value[0], reg_read_value[1], reg_read_value[2], reg_read_value[3],
-											 reg_read_value[4], reg_read_value[5], reg_read_value[6], reg_read_value[7]);
+											 reg_read_value[10], reg_read_value[11], reg_read_value[12], reg_read_value[13]);
 	}
 			
 	return detected;
@@ -682,7 +681,7 @@ MszRc MszT200Device::write_registers(const uint32_t reg_addr, const uint32_t *re
 	if ((reg_addr < msz_t200_register_number) && (regs_count <= msz_t200_register_access_in_single_operation) && (reg_addr + regs_count) <= msz_t200_register_number) {
 		data_idx = 0;
 		this->enable();
-		delayMicroseconds(100);
+		delayMicroseconds(300);
 		data_idx += this->send_header(data, reg_addr, true, regs_count);
 		if (data_idx) {
 			data_idx += this->send_registers_value(data + data_idx, reg_data, regs_count);
@@ -714,7 +713,7 @@ MszRc MszT200Device::read_registers(const uint32_t reg_addr, uint32_t *reg_data,
 	if ((reg_addr < msz_t200_register_number) && (regs_count <= msz_t200_register_access_in_single_operation) && (reg_addr + regs_count) <= msz_t200_register_number) {
 		data_idx = 0;
 		this->enable();
-		delayMicroseconds(100);
+		delayMicroseconds(300);
 		data_idx += this->send_header(data + data_idx, reg_addr, false, regs_count);
 		if (data_idx) {
 			data_idx += this->recv_registers_value(data + data_idx, reg_data, regs_count);
