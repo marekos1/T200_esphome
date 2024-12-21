@@ -1,5 +1,6 @@
 esphome:
   name: esphome-web-dfcb8c
+  friendly_name: esphome-web-dfcb8c
   includes:
     - custom_components/msz_t200_device/msz_t200_device.h
 #    - custom_components/msz_t200_text_sens/msz_t200_text_sens.h
@@ -8,7 +9,8 @@ esphome:
 esp32:
   board: esp32-s2-saola-1
   framework:
-    type: arduino
+#    type: arduino
+    type: esp-idf
 
 # Enable Home Assistant API
 api:
@@ -33,8 +35,23 @@ wifi:
     # The subnet of the network. 255.255.255.0 works for most home networks.
     subnet: 255.255.255.0
 
+web_server:
+  local: true
+
 captive_portal:
 
+status_led:
+  pin:
+    number: GPIO2
+    inverted: true
+
+button:
+  - platform: factory_reset
+    name: Restart with Factory Default Settings
+  - platform: restart
+    name: "esphome-web-dfcb8c Restart"
+  - platform: safe_mode
+    name: "esphome-web-dfcb8c Restart (Safe Mode)"
 debug:
   update_interval: 5s
 
@@ -50,21 +67,19 @@ text_sensor:
     name: "Device Info"
   reset_reason:
     name: "Reset Reason"
-
-
 - platform: wifi_info
   ip_address:
     name: ESP IP Address
     address_0:
       name: ESP IP Address 0
-    address_1:
-      name: ESP IP Address 1
-    address_2:
-      name: ESP IP Address 2
-    address_3:
-      name: ESP IP Address 3
-    address_4:
-      name: ESP IP Address 4
+#    address_1:
+#      name: ESP IP Address 1
+#    address_2:
+#      name: ESP IP Address 2
+#    address_3:
+#      name: ESP IP Address 3
+#    address_4:
+#      name: ESP IP Address 4
   ssid:
     name: ESP Connected SSID
   bssid:
@@ -76,20 +91,11 @@ text_sensor:
   dns_address:
     name: ESP DNS Address
 
-#text_sensor:
-#  - platform: ethernet_info
-#    ip_address:
-#      name: ESP IP Address
-#      address_0:
-#        name: ESP IP Address 0
-#      address_1:
-#        name: ESP IP Address 1
 
 
-status_led:
-  pin:
-    number: GPIO2
-    inverted: true
+
+
+
 
 spi:
 - id: spi0
@@ -106,7 +112,7 @@ msz_t200_device:
   unit_module_1.1: "input8"
   unit_module_1.2: "input8"
   unit_module_1.3: "output8"
-  unit_module_1.4: "dallas4"
+  unit_module_1.4: "output8"
 
 sensor:
   - platform: debug
@@ -116,6 +122,11 @@ sensor:
       name: "Heap Max Block"
     loop_time:
       name: "Loop Time"
+
+  - platform: uptime
+    type: seconds
+    name: Uptime Sensor
+
   - platform: msz_t200_sens2
     msz_t200_device: msz_t200_dev_1
     unit_id: 1
@@ -155,7 +166,7 @@ binary_sensor:
       unit_id: 1
       module_id: 1
       channel_id: 1
-      number: 1
+      number: 100
       mode:
         input: true
         pullup: true
@@ -214,13 +225,13 @@ output:
         pullup: true
       inverted: false
 
-light:
-  - platform: fastled_clockless
-    chipset: WS2812
-    pin: GPIO18
-    num_leds: 1
-    rgb_order: GRB
-    name: "FastLED WS2811 Light"    
-  - platform: binary
-    name: "Desk Lamp"
-    output: light_output
+#light:
+#  - platform: fastled_clockless
+#    chipset: WS2812
+#    pin: GPIO18
+#    num_leds: 1
+#    rgb_order: GRB
+#    name: "FastLED WS2811 Light"    
+#  - platform: binary
+#    name: "Desk Lamp"
+#    output: light_output
