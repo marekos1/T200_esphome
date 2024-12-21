@@ -1,17 +1,18 @@
 esphome:
   name: esphome-web-dfcb8c
   friendly_name: esphome-web-dfcb8c
-  includes:
-    - custom_components/msz_t200_device/msz_t200_device.h
-#    - custom_components/msz_t200_text_sens/msz_t200_text_sens.h
-#    - custom_components/msz_t200_text_sens2/msz_t200_text_sens2.h
+#  includes:
+#    - custom_components/msz_t200_device/msz_t200_device.h
 
 esp32:
   board: esp32-s2-saola-1
   framework:
-#    type: arduino
     type: esp-idf
-
+external_components:    
+  - source:
+      type: local
+      path: custom_components
+      
 # Enable Home Assistant API
 api:
 
