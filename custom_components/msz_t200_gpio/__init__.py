@@ -88,13 +88,13 @@ async def msz_t200_pin_to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     parent = await cg.get_variable(config[CONF_MSZT200_DEV])
 
-    cg.add(var.set_parent(parent))
+    cg.add(var.set_ha_user_conf_parent(parent))
 
     unit = config[CONF_UNIT_ID]
     module = config[CONF_MODULE_ID]
     num = config[CONF_INST_ID]
-    cg.add(var.set_inst_ident(unit, module, num))
-    cg.add(var.set_inverted(config[CONF_INVERTED]))
-    cg.add(var.set_flags(pins.gpio_flags_expr(config[CONF_MODE])))
-    cg.add(var.set_interrupt_mode(config[CONF_INTERRUPT]))
+    cg.add(var.set_ha_user_conf_inst_ident(unit, module, num))
+    cg.add(var.set_ha_user_conf_inverted(config[CONF_INVERTED]))
+    cg.add(var.set_ha_user_conf_flags(pins.gpio_flags_expr(config[CONF_MODE])))
+    cg.add(var.set_ha_user_conf_interrupt_mode(config[CONF_INTERRUPT]))
     return var

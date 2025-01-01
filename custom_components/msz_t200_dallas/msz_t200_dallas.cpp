@@ -41,7 +41,9 @@ void MszT200Dallas::update() {
       this->temperature_sensor_->publish_state(temperature);
 	}
 #else
-	uint32_t data = this->parent_->get_data(instance_ident_);
+	uint32_t data; 
+	
+	this->parent_->msz_t200_dallas_get_data(instance_ident_, data);
 	if (this->temperature_sensor_ != nullptr) {
 //	   ESP_LOGCONFIG(TAG, "publish data: %f  instance_ident_.channelL: %u " , data, instance_ident_.channel);
       this->temperature_sensor_->publish_state(data);
@@ -92,9 +94,9 @@ bool MszT200Dallas::read_data_(uint8_t *data) {
 void MszT200Dallas::set_inst_ident(uint8_t unit_id, uint8_t module_id, uint8_t channel_id) {
 	 
 	ESP_LOGCONFIG(TAG, "Enter uint_id: %u module_id: %u channel_id: %u" , unit_id, module_id, channel_id);
-	this->instance_ident_.unit_id = unit_id; 
-	this->instance_ident_.module_id = module_id; 
-	this->instance_ident_.channel_id = channel_id; 
+	this->instance_ident_.unit_no = unit_id; 	//TODO uzyc konwerterów
+	this->instance_ident_.module_no = module_id; 
+	this->instance_ident_.channel_no = channel_id; 
 }
 
 }  // namespace msz_t200_dallas

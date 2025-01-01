@@ -52,16 +52,16 @@ async def to_code(config):
     
     if irq_pin_config := config.get(CONF_IRQ_PIN):
         irq_pin = await cg.gpio_pin_expression(irq_pin_config)
-        cg.add(var.set_irq_pin(irq_pin))
+        cg.add(var.set_ha_user_conf_irq_pin(irq_pin))
     
     await spi.register_spi_device(var, config)
     
 
 
-    cg.add(var.set_conf_mod1(1,1,config[CONF_UNIT_MODULE_1_1]))
-    cg.add(var.set_conf_mod1(1,2,config[CONF_UNIT_MODULE_1_2]))
-    cg.add(var.set_conf_mod1(1,3,config[CONF_UNIT_MODULE_1_3]))
-    cg.add(var.set_conf_mod1(1,4,config[CONF_UNIT_MODULE_1_4]))
+    cg.add(var.set_ha_user_conf_unit_module(1,1,config[CONF_UNIT_MODULE_1_1]))
+    cg.add(var.set_ha_user_conf_unit_module(1,2,config[CONF_UNIT_MODULE_1_2]))
+    cg.add(var.set_ha_user_conf_unit_module(1,3,config[CONF_UNIT_MODULE_1_3]))
+    cg.add(var.set_ha_user_conf_unit_module(1,4,config[CONF_UNIT_MODULE_1_4]))
     
     for i, conf in enumerate(config[CONF_TEXT_SENSORS]):
         text = cg.Pvariable(conf[CONF_ID], var.get_new_text_sensor_by_id(i))

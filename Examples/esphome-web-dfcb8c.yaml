@@ -1,17 +1,17 @@
 esphome:
   name: esphome-web-dfcb8c
   friendly_name: esphome-web-dfcb8c
-#  includes:
-#    - custom_components/msz_t200_device/msz_t200_device.h
+  includes:
+   - custom_components/msz_t200_device/msz_t200_device.h
 
 esp32:
   board: esp32-s2-saola-1
   framework:
     type: esp-idf
-external_components:    
-  - source:
-      type: local
-      path: custom_components
+#external_components:    
+#  - source:
+#      type: local
+#      path: custom_components
       
 # Enable Home Assistant API
 api:
@@ -109,6 +109,7 @@ msz_t200_device:
   spi_id: "spi0"
   cs_pin: GPIO10
   irq_pin: GPIO1
+
   text_sensors: [name: "Status", name: "Statistics", name: "SpiStat"]
   unit_module_1.1: "input8"
   unit_module_1.2: "input8"
@@ -226,13 +227,13 @@ output:
         pullup: true
       inverted: false
 
-#light:
+light:
 #  - platform: fastled_clockless
 #    chipset: WS2812
 #    pin: GPIO18
 #    num_leds: 1
 #    rgb_order: GRB
 #    name: "FastLED WS2811 Light"    
-#  - platform: binary
-#    name: "Desk Lamp"
-#    output: light_output
+  - platform: binary
+    name: "Desk Lamp"
+    output: light_output
