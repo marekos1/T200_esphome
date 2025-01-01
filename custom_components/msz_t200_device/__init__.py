@@ -14,6 +14,8 @@ CONF_UNIT_MODULE_1_1 = "unit_module_1.1"
 CONF_UNIT_MODULE_1_2 = "unit_module_1.2"
 CONF_UNIT_MODULE_1_3 = "unit_module_1.3"
 CONF_UNIT_MODULE_1_4 = "unit_module_1.4"
+CONF_TEST_PIN = "test_pin"
+
 
 msz_t200_device_ns = cg.esphome_ns.namespace('msz_t200_device')
 MszT200Base = msz_t200_device_ns.class_('MszT200Base', cg.Component)
@@ -33,6 +35,7 @@ CONFIG_SCHEMA = (
 		{
 			cv.GenerateID(): cv.declare_id(MszT200Device),
 			cv.Optional(CONF_IRQ_PIN): pins.internal_gpio_input_pin_schema,
+			cv.Optional(CONF_TEST_PIN): pins.internal_gpio_input_pin_schema,
 			cv.Optional(CONF_TEXT_SENSORS): cv.ensure_list(
 				text_sensor.text_sensor_schema()
 			),
@@ -53,6 +56,10 @@ async def to_code(config):
     if irq_pin_config := config.get(CONF_IRQ_PIN):
         irq_pin = await cg.gpio_pin_expression(irq_pin_config)
         cg.add(var.set_ha_user_conf_irq_pin(irq_pin))
+        
+    if test_pin_config := config.get(CONF_TEST_PIN):
+        test_pin = await cg.gpio_pin_expression(test_pin_config)
+        cg.add(var.set_ha_user_conf_test_pin(test_pin))
     
     await spi.register_spi_device(var, config)
     

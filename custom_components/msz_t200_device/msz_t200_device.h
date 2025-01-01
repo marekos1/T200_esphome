@@ -252,6 +252,7 @@ class MszT200Device : public MszT200Base,
     
     void set_ha_user_conf_unit_module(const uint8_t u_unit, const uint8_t u_module, const MszT200ModuleType mode_type);
     void set_ha_user_conf_irq_pin(InternalGPIOPin *irq_pin);
+    void set_ha_user_conf_test_pin(InternalGPIOPin *test_pin);
     text_sensor::TextSensor* get_new_text_sensor_by_id(const int i);
 
  private:
@@ -289,6 +290,7 @@ class MszT200Device : public MszT200Base,
     
  protected:
    InternalGPIOPin *irq_pin_{nullptr};
+   InternalGPIOPin *test_pin_{nullptr};
 };
 
 }  // namespace msz_t200_device

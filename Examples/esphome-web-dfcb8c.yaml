@@ -109,6 +109,7 @@ msz_t200_device:
   spi_id: "spi0"
   cs_pin: GPIO10
   irq_pin: GPIO1
+  test_pin: GPIO3
 
   text_sensors: [name: "Status", name: "Statistics", name: "SpiStat"]
   unit_module_1.1: "input8"

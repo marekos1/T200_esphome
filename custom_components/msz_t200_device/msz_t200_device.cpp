@@ -834,6 +834,11 @@ void MszT200Device::setup() {
 	if (this->irq_pin_ != nullptr) {
 		this->irq_pin_->setup();
 	}
+	
+	if (this->test_pin_ != nullptr) {
+		this->test_pin_->digital_write(false);
+		this->test_pin_->pin_mode(gpio::Flags::FLAG_OUTPUT);
+	}
  
 	txt_sensor = get_text_sensor_by_name("Statistics");
 	this->loop_stats.set_txt_sensor(txt_sensor);
@@ -881,6 +886,11 @@ void MszT200Device::set_ha_user_conf_unit_module(const uint8_t u_unit, const uin
 void MszT200Device::set_ha_user_conf_irq_pin(InternalGPIOPin *irq_pin) { 
 	
 	irq_pin_ = irq_pin; 
+}
+
+void MszT200Device::set_ha_user_conf_test_pin(InternalGPIOPin *test_pin) { 
+	
+	test_pin_ = test_pin; 
 }
 
 
@@ -1046,7 +1056,8 @@ MszRc MszT200Device::write_registers(const uint32_t reg_addr, const uint32_t *re
 	MszRc									rc = MszRc::OK;
 	uint8_t									data[2 + 6 + (4 * msz_t200_register_access_in_single_operation) + 4];
 	uint32_t								data_idx, crc32;
-
+	
+	this->test_pin_->digital_write(false);
 	ESP_LOGCONFIG(TAG, "ENTER write_reg reg_addr: %u reg_value: %u regs_count: %u", reg_addr, *reg_data, regs_count);
 	if ((reg_addr < msz_t200_register_number) && (regs_count <= msz_t200_register_access_in_single_operation) && (reg_addr + regs_count) <= msz_t200_register_number) {
 		data_idx = 0;
@@ -1066,6 +1077,9 @@ MszRc MszT200Device::write_registers(const uint32_t reg_addr, const uint32_t *re
 		rc = MszRc::Inv_arg;
 	}
 	this->spi_stats.event(true, rc, regs_count);
+	if (rc != MszRc::OK) {
+		this->test_pin_->digital_write(true);
+	}
 //	ESP_LOGCONFIG(TAG, "EXIT write_reg rc: %u", rc);
 
 	return rc;
@@ -1077,6 +1091,7 @@ MszRc MszT200Device::read_registers(const uint32_t reg_addr, uint32_t *reg_data,
 	uint8_t									data[2 + 6 + (4 * msz_t200_register_access_in_single_operation) + 4];
 	uint32_t								data_idx, crc32_recv, crc32_calc;
 	
+	this->test_pin_->digital_write(false);
 //	ESP_LOGCONFIG(TAG, "ENTER reg_addr: %u regs_count: %u", reg_addr, regs_count);
 	if ((reg_addr < msz_t200_register_number) && (regs_count <= msz_t200_register_access_in_single_operation) && 
 		(reg_addr + regs_count) <= msz_t200_register_number) {
@@ -1102,6 +1117,9 @@ MszRc MszT200Device::read_registers(const uint32_t reg_addr, uint32_t *reg_data,
 		rc = MszRc::Inv_arg;
 	}
 	this->spi_stats.event(false, rc, regs_count);
+	if (rc != MszRc::OK) {
+		this->test_pin_->digital_write(true);
+	}
 //	ESP_LOGCONFIG(TAG, "EXIT reg_addr rc: %u data 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X", rc, 
 //													*(data + 8), *(data + 9), *(data + 10), *(data + 11), 
 //													*(data + 12), *(data + 13), *(data + 14), *(data + 15));
