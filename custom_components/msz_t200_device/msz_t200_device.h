@@ -11,13 +11,14 @@ namespace esphome {
 namespace msz_t200_device {
 	
 	
-#define MSZ_T200_UNITS_PER_DEVICE 		1
-#define MSZ_T200_MODULES_PER_UNIT 		4
-#define MSZ_T200_CHANNELS_PER_MODULE	8
+#define MSZ_T200_UNITS_PER_DEVICE 			1
+#define MSZ_T200_MODULES_PER_UNIT 			4
+#define MSZ_T200_CHANNELS_PER_MODULE		8
 
-#define MSZ_T200_TOTAL_INST 			(MSZ_T200_UNITS_PER_DEVICE * MSZ_T200_MODULES_PER_UNIT * MSZ_T200_CHANNELS_PER_MODULE)
+#define MSZ_T200_TOTAL_INST 				(MSZ_T200_UNITS_PER_DEVICE * MSZ_T200_MODULES_PER_UNIT * MSZ_T200_CHANNELS_PER_MODULE)
 
-#define MSZ_T200_SW_OPTION_TEXT_SENSOR	1
+#define MSZ_T200_SW_OPTION_TEXT_SENSOR		1
+
 
 
 typedef uint8_t msz_t200_unit_no_t;
@@ -74,7 +75,7 @@ class MszT200InstanceIdent {
 class MszT200DeviceSpiStats {
 	
  public:
-	void step(const struct timeval& current_tv);
+	void step();
 	void event(const bool wr_operation, const MszRc rc, const uint32_t data_length);
  	void publish();
  	void set_txt_sensor(text_sensor::TextSensor *txt_sensor);
@@ -101,16 +102,21 @@ class MszT200DeviceSpiStats {
 class MszT200DeviceLoopStats {
 	
  public:
-	void step(const struct timeval& current_tv, const struct timeval& end_tv);
+	void start();
+	void end();
+	void enable_stats(const bool enable);
 	void publish();
 	void set_txt_sensor(text_sensor::TextSensor *txt_sensor);
 	MszT200DeviceLoopStats();
 		
  private:
+	bool									enable_;
+	uint32_t								start_time, end_time;
+	uint32_t 								loop_time, loop_time_min, loop_time_max, loop_time_cum, loop_time_total, loop_time_avg;
+	uint32_t 								loop_rate, loop_rate_min, loop_rate_max, loop_rate_cum, loop_rate_avg;
+	uint32_t								loop_rate_ctr, loop_rate_last_sec, loop_rate_total;
+	uint32_t								publish_ctr, publish_next_ctr;
  	text_sensor::TextSensor					*txts;
-	uint32_t								publish_ctr;
-	struct timeval 							loop_tv, loop_tv_min, loop_tv_max, loop_tv_cum, loop_tv_avg;
-	uint32_t 								loop_cum_ctr, loop_rate_last_sec, loop_rate_ctr, loop_rate;
 
 	const char* print_stats(char *txt, uint32_t text_length);
 };

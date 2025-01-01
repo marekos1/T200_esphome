@@ -88,9 +88,12 @@ int timeval_subtract(struct timeval& result, const struct timeval& x, const stru
  * MSZ T200 SPI stats
  **********************************************************/
 
-void MszT200DeviceSpiStats::step(const struct timeval& current_tv) {
+void MszT200DeviceSpiStats::step() {
 
+	struct timeval							current_tv;
+	
 	if (txts) {
+		 gettimeofday(&current_tv, NULL);
 		if (current_tv.tv_sec >= publish_ctr) {
 			publish_ctr = current_tv.tv_sec + 3;
 			publish();
@@ -150,45 +153,72 @@ MszT200DeviceSpiStats::MszT200DeviceSpiStats() : write_ok_ctr{0}, write_err_ctr{
 /**********************************************************
  * MSZ T200 LOOP stats
  **********************************************************/
-
-void MszT200DeviceLoopStats::step(const struct timeval& current_tv, const struct timeval& end_tv) {
+ 
+void MszT200DeviceLoopStats::start() {
 	
-	char									text[128];
-		
-	if (current_tv.tv_sec != loop_rate_last_sec) {
-		loop_rate_last_sec = current_tv.tv_sec;
-		loop_rate = loop_rate_ctr;
-		loop_rate_ctr = 1;
+	if (enable_) {
+		start_time = millis();
 	} else {
+		if (millis() > 10000) {
+			enable_stats(true);
+		}
+	}
+}
+
+void MszT200DeviceLoopStats::end() {
+	
+	if (enable_) {
+		end_time = millis();
+		loop_time = end_time - start_time;
+		if (loop_time < loop_time_min) {
+			loop_time_min = loop_time;
+		}
+		if (loop_time > loop_time_max) {
+			loop_time_max = loop_time;
+		}
+		loop_time_cum += loop_time;
+		loop_time_total++;
+		
 		loop_rate_ctr++;
-	}
-	
-	timeval_subtract(loop_tv, end_tv, current_tv);
-	if (timeval_compare(loop_tv_min, loop_tv)) {
-		loop_tv_min = loop_tv;
-	}
-	if (timeval_compare(loop_tv, loop_tv_max)) {
-		loop_tv_max = loop_tv;
-	}
-	timeval_add(loop_tv_cum, loop_tv);
-	loop_cum_ctr++;
-	timeval_get_avg(loop_tv_avg, loop_tv_cum, loop_cum_ctr);
-	
-	if (txts) {
-		if (current_tv.tv_sec >= publish_ctr) {
-			publish_ctr = current_tv.tv_sec + 3;
-			publish();	
+		if (end_time >= loop_rate_last_sec) {
+			loop_rate_last_sec = end_time + 1000;
+			loop_rate = loop_rate_ctr;
+			loop_rate_ctr = 0;
+			
+			if (loop_rate < loop_rate_min) {
+				loop_rate_min = loop_rate;
+			}
+			if (loop_rate > loop_rate_max) {
+				loop_rate_max = loop_rate;
+			}
+			loop_rate_cum += loop_rate;
+			loop_rate_total++;
+			loop_rate_avg = loop_rate_cum / loop_rate_total;
+			
+			ESP_LOGCONFIG(TAG, "loop_rate: %u %u %u %u", loop_rate, loop_rate_min, loop_rate_max, loop_rate_avg);
+		}
+		
+		if(end_time >= publish_next_ctr) {
+			publish_next_ctr = end_time + 3000;
+			loop_time_avg = loop_time_cum / loop_time_total;
+			
+			if (txts) {
+				publish();	
+			}	
 		}
 	}	
 }
 
+void MszT200DeviceLoopStats::enable_stats(const bool enable) {
+	
+	enable_ = enable;
+}
+
 const char* MszT200DeviceLoopStats::print_stats(char *txt, uint32_t text_length) {
 
-	snprintf(txt, text_length, "Loop rate: %u curr: %u.%06u min: %u.%06u max: %u.%06u avg: %u.%06u", 
-													loop_rate, loop_tv.tv_sec, loop_tv.tv_usec, 
-													loop_tv_min.tv_sec, loop_tv_min.tv_usec, 
-													loop_tv_max.tv_sec, loop_tv_max.tv_usec,
-													loop_tv_avg.tv_sec, loop_tv_avg.tv_usec);
+	snprintf(txt, text_length, "Loop rate current %u min: %u max: %u avg: %u Loop Time current %u min: %u max: %u avg: %u", 
+												    loop_rate, loop_rate_min, loop_rate_max, loop_rate_avg,
+													loop_time, loop_time_min, loop_time_max, loop_time_avg);
 
 	return txt;
 }
@@ -208,7 +238,10 @@ void MszT200DeviceLoopStats::set_txt_sensor(text_sensor::TextSensor *txt_sensor)
 	txts = txt_sensor;
 } 
 
-MszT200DeviceLoopStats::MszT200DeviceLoopStats() : publish_ctr{0}, loop_tv_min{.tv_sec = 9999, .tv_usec = 999999} {
+MszT200DeviceLoopStats::MszT200DeviceLoopStats() :  enable_{false}, start_time{0}, end_time{0},
+													loop_time{0}, loop_time_min{0xFFFFFFFF}, loop_time_max{0}, loop_time_cum{0}, loop_time_total{0}, loop_time_avg{0},
+													loop_rate{0}, loop_rate_min{0xFFFFFFFF}, loop_rate_max{0}, loop_rate_cum{0}, loop_rate_avg{0},
+													loop_rate_ctr{0}, loop_rate_last_sec{0}, loop_rate_total{0}, publish_ctr{0}, publish_next_ctr{0} {
 	
 	txts = NULL;
 }
@@ -807,17 +840,10 @@ MszRc MszT200Device::poll() {
 
 void MszT200Device::loop() {
 
-	struct timeval 							current_tv, end_tv;
-	MszRc									rc;
-
-    gettimeofday(&current_tv, NULL);
-//	ESP_LOGCONFIG(TAG, "Enter %u.%06u", current_tv.tv_sec, current_tv.tv_usec);
-	
-	this->poll();
-	
-	gettimeofday(&end_tv, NULL);
-	this->loop_stats.step(current_tv, end_tv);
-	this->spi_stats.step(current_tv);
+    loop_stats.start();
+	poll();
+	loop_stats.end();
+	spi_stats.step();
 }
 
 void MszT200Device::setup() {
@@ -1062,7 +1088,7 @@ MszRc MszT200Device::write_registers(const uint32_t reg_addr, const uint32_t *re
 	if ((reg_addr < msz_t200_register_number) && (regs_count <= msz_t200_register_access_in_single_operation) && (reg_addr + regs_count) <= msz_t200_register_number) {
 		data_idx = 0;
 		this->enable();
-		delayMicroseconds(300);
+		delayMicroseconds(1000);
 		data_idx += this->send_header(data, reg_addr, true, regs_count);
 		if (data_idx) {
 			data_idx += this->send_registers_value(data + data_idx, reg_data, regs_count);
@@ -1097,7 +1123,7 @@ MszRc MszT200Device::read_registers(const uint32_t reg_addr, uint32_t *reg_data,
 		(reg_addr + regs_count) <= msz_t200_register_number) {
 		data_idx = 0;
 		this->enable();
-		delayMicroseconds(300);
+		delayMicroseconds(1000);
 		data_idx += this->send_header(data + data_idx, reg_addr, false, regs_count);
 		if (data_idx) {
 			data_idx += this->recv_registers_value(data + data_idx, reg_data, regs_count);
