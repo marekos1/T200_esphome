@@ -214,7 +214,7 @@ class MszT200DeviceSlaveStatus {
 	uint32_t								detect_ok_ctr;
 	uint32_t								conf_ok_ctr;
 	
-	bool									init_done;
+	bool									init_done_;
 	MszT200DeviceSlaveStatusDetect			detect_;
 	MszT200DeviceSlaveStatusConfigured		conf_;
 	text_sensor::TextSensor					*txts;
@@ -223,6 +223,7 @@ class MszT200DeviceSlaveStatus {
 	void publish();
 	void set_detected(const MszT200DeviceSlaveStatusDetect& detect);
 	void set_configured(const MszT200DeviceSlaveStatusConfigured& conf);
+	void set_init_done();
 };
 
 

@@ -58,7 +58,8 @@ debug:
 
 # Logger must be at least debug (default)
 logger:
-  level: debug
+#  level: debug
+  level: info
 
 text_sensor:
 - platform: version
