@@ -1,0 +1,129 @@
+esphome:
+  name: msz-t200-test1
+  friendly_name: MSZ_T200_test1
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "xDMbIvYuNhCLWHS54T+87ve6PHdtj5ERei8uCQwtXsA="
+
+ota:
+  - platform: esphome
+    password: "0965ec91090e9bf5935b0dfda01f6013"
+
+#wifi:
+#  ssid: !secret old_house_ssid
+#  password: !secret old_house_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+#  ap:
+#    ssid: "Msz-T200-Test1 Fallback Hotspot"
+#    password: "Y2hc6ydlIMCe"
+
+#  manual_ip:
+    # Set this to the IP of the ESP
+#    static_ip: 192.168.1.116
+    # Set this to the IP address of the router. Often ends with .1
+#    gateway: 192.168.1.1
+    # The subnet of the network. 255.255.255.0 works for most home networks.
+#    subnet: 255.255.255.0
+
+#captive_portal:
+
+
+ethernet:
+  type: LAN8720
+  mdc_pin: GPIO32
+  mdio_pin: GPIO33
+  clk_mode: GPIO0_IN
+  phy_addr: 0
+#  power_pin: GPIO16
+
+  manual_ip:
+    static_ip: 192.168.1.117
+    gateway: 192.168.1.1
+    subnet: 255.255.255.0
+
+
+
+web_server:
+  local: true
+
+
+
+debug:
+  update_interval: 5s
+
+# Logger must be at least debug (default)
+logger:
+  level: debug
+#  level: info
+
+text_sensor:
+- platform: version
+  name: "ESPHome Version"
+- platform: debug
+  device:
+    name: "Device Info"
+  reset_reason:
+    name: "Reset Reason"
+#- platform: wifi_info
+#  ip_address:
+#    name: ESP IP Address
+#    address_0:
+#      name: ESP IP Address 0
+##    address_1:
+##      name: ESP IP Address 1
+##    address_2:
+##      name: ESP IP Address 2
+##    address_3:
+##      name: ESP IP Address 3
+##    address_4:
+##      name: ESP IP Address 4
+#  ssid:
+#    name: ESP Connected SSID
+#  bssid:
+#    name: ESP Connected BSSID
+#  mac_address:
+#    name: ESP Mac Wifi Address
+#  scan_results:
+#    name: ESP Latest Scan Results
+#  dns_address:
+#    name: ESP DNS Address
+
+spi:
+- id: spi0
+  clk_pin: GPIO18
+  mosi_pin: GPIO23
+  miso_pin: GPIO4
+
+msz_t200_device:
+  id: msz_t200_dev_1
+  spi_id: "spi0"
+  cs_pin: GPIO5
+  irq_pin: GPIO2
+  test_pin: GPIO3
+
+  text_sensors: [name: "Status", name: "Statistics", name: "SpiStat"]
+  unit_module_1.1: "input8"
+  unit_module_1.2: "input8"
+  unit_module_1.3: "input8"
+  unit_module_1.4: "input8"
+
+sensor:
+  - platform: debug
+    free:
+      name: "Heap Free"
+    block:
+      name: "Heap Max Block"
+    loop_time:
+      name: "Loop Time"
+
+  - platform: uptime
+    type: seconds
+    name: Uptime Sensor  
