@@ -13,7 +13,8 @@ static const uint8_t msz_t200_header_second = 0xD3;
 static const uint32_t msz_t200_register_number = 0x01FFFFFF;
 static const uint32_t msz_t200_register_access_in_single_operation = 128;
 
-
+static const uint32_t msz_t200_delay_us_after_spi_cs_enable = 100;
+static const uint32_t msz_t200_delay_us_befor_next_spi_operation = 300;
 
 
 bool timeval_compare(const struct timeval& lhs, const struct timeval& rhs) {
@@ -562,7 +563,7 @@ MszRc MszT200Device::detect_slave_device(uint32_t *regs_value, MszT200DeviceSlav
 		if (regs_value[1] == 0x00000082) {
 			status.hw_rev = regs_value[2];
 			status.sw_ver = regs_value[3];
-			if (status.hw_rev == 1) {
+			if (status.hw_rev < 3) {
 				if ((status.sw_ver == 1) || (status.sw_ver == 2)) {
 					status.detected = true;
 				} else {
@@ -570,7 +571,7 @@ MszRc MszT200Device::detect_slave_device(uint32_t *regs_value, MszT200DeviceSlav
 					rc = MszRc::Unsupported_fw_ver;
 				}
 			} else {
-				ESP_LOGI(TAG, "Slave unsupported hardware revision: %u expected: %u", status.hw_rev, 1);
+				ESP_LOGI(TAG, "Slave unsupported hardware revision: %u expected: 1 or 2", status.hw_rev);
 				rc = MszRc::Unsupported_hw_rev;
 			}
 					
@@ -789,7 +790,7 @@ MszRc MszT200Device::init_slave(uint32_t *reg_read_value) {
 			slave_status.conf_ok_event(rc, configured_stat);
 		} else {
 			ESP_LOGD(TAG, "Slave configuration invalid! Apply conf");
-			delayMicroseconds(1000);
+			delayMicroseconds(msz_t200_delay_us_befor_next_spi_operation);
 			rc = apply_slave_conf(ha_user_config);
 			slave_status.apply_conf_event(rc);
 			if (rc != MszRc::OK) {
@@ -833,7 +834,7 @@ MszRc MszT200Device::poll() {
 				if (init_done) {
 					rc = slave_status_poll(&reg_read_value[10], ha_user_config);
 				} else {
-					delayMicroseconds(1000);
+					delayMicroseconds(msz_t200_delay_us_befor_next_spi_operation);
 					rc = write_state(true, was_write);
 					slave_status.access_regs_event(rc);
 				}
@@ -1094,7 +1095,7 @@ MszRc MszT200Device::write_registers(const uint32_t reg_addr, const uint32_t *re
 	if ((reg_addr < msz_t200_register_number) && (regs_count <= msz_t200_register_access_in_single_operation) && (reg_addr + regs_count) <= msz_t200_register_number) {
 		data_idx = 0;
 		this->enable();
-		delayMicroseconds(1000);
+		delayMicroseconds(msz_t200_delay_us_after_spi_cs_enable);
 		data_idx += this->send_header(data, reg_addr, true, regs_count);
 		if (data_idx) {
 			data_idx += this->send_registers_value(data + data_idx, reg_data, regs_count);
@@ -1129,7 +1130,7 @@ MszRc MszT200Device::read_registers(const uint32_t reg_addr, uint32_t *reg_data,
 		(reg_addr + regs_count) <= msz_t200_register_number) {
 		data_idx = 0;
 		this->enable();
-		delayMicroseconds(1000);
+		delayMicroseconds(msz_t200_delay_us_after_spi_cs_enable);
 		data_idx += this->send_header(data + data_idx, reg_addr, false, regs_count);
 		if (data_idx) {
 			data_idx += this->recv_registers_value(data + data_idx, reg_data, regs_count);
